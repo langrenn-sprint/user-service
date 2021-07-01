@@ -4,6 +4,7 @@ import os
 from typing import Any
 
 from aiohttp import web
+from aiohttp_middlewares import cors_middleware, error_middleware
 import motor.motor_asyncio
 
 from .views import (
@@ -26,7 +27,12 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 async def create_app() -> web.Application:
     """Create an web application."""
-    app = web.Application()
+    app = web.Application(
+        middlewares=[
+            cors_middleware(allow_all=True),
+            error_middleware(),  # default error handler for whole application
+        ]
+    )
     # Set up logging
     logging.basicConfig(level=LOGGING_LEVEL)
     logging.getLogger("chardet.charsetprober").setLevel(LOGGING_LEVEL)

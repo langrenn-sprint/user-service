@@ -24,6 +24,7 @@ multidict = "^5.1.0"
 cchardet = "^2.1.7"
 PyJWT = "^2.1.0"
 dataclasses-json = "^0.5.4"
+aiohttp-middlewares = "^1.1.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.1.1"
