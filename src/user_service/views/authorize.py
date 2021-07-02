@@ -1,5 +1,7 @@
 """Resource module for authorize resources."""
 import json
+import logging
+import traceback
 
 from aiohttp.web import (
     HTTPBadRequest,
@@ -36,13 +38,13 @@ class AuthorizeView(View):
                 db, body.get("token", None), body.get("roles", None)
             )
         except (
+            InvalidTokenException,
             InvalidInputException,
             InconsistentTokenException,
             IncompleteTokenException,
         ) as e:
-            raise HTTPBadRequest(reason=e)
-        except InvalidTokenException:
-            raise HTTPUnauthorized()
+            logging.debug(traceback.format_exc())
+            raise HTTPUnauthorized(reason=e)
         except UserNotAuthorizedException:
             raise HTTPForbidden()
 
