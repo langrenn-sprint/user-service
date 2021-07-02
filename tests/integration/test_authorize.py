@@ -97,7 +97,7 @@ async def test_authorize(
 async def test_authorize_incomplete_token(
     client: _TestClient, mocker: MockFixture, incomplete_token: MockFixture
 ) -> None:
-    """Should return 400 Bad Request."""
+    """Should return 401 Unauthorized."""
     request_body = {"token": incomplete_token, "roles": ["admin"]}
 
     headers = MultiDict(
@@ -107,7 +107,7 @@ async def test_authorize_incomplete_token(
     )
 
     resp = await client.post("/authorize", headers=headers, json=request_body)
-    assert resp.status == 400
+    assert resp.status == 401
 
 
 @pytest.mark.integration
@@ -157,7 +157,7 @@ async def test_authorize_no_body(
 async def test_authorize_invalid_body(
     client: _TestClient, mocker: MockFixture, token_nonprivileged_user: MockFixture
 ) -> None:
-    """Should return 400 Bad Request."""
+    """Should return 401 Unauthorized."""
     mocker.patch(
         "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
         side_effect=mock_inconsistent_user,
@@ -172,14 +172,14 @@ async def test_authorize_invalid_body(
     )
 
     resp = await client.post("/authorize", headers=headers, json=invalid_body)
-    assert resp.status == 400
+    assert resp.status == 401
 
 
 @pytest.mark.integration
 async def test_authorize_body_missing_required_input(
     client: _TestClient, mocker: MockFixture, token_nonprivileged_user: MockFixture
 ) -> None:
-    """Should return 400 Bad Request."""
+    """Should return 401 Unauthorized."""
     mocker.patch(
         "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
         side_effect=mock_inconsistent_user,
@@ -194,14 +194,14 @@ async def test_authorize_body_missing_required_input(
     )
 
     resp = await client.post("/authorize", headers=headers, json=request_body)
-    assert resp.status == 400
+    assert resp.status == 401
 
 
 @pytest.mark.integration
 async def test_authorize_token_role_does_not_match_user_role(
     client: _TestClient, mocker: MockFixture, token_nonprivileged_user: MockFixture
 ) -> None:
-    """Should return 400 Bad Request."""
+    """Should return 403 Forbidden."""
     mocker.patch(
         "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
         side_effect=mock_inconsistent_user,
@@ -216,7 +216,7 @@ async def test_authorize_token_role_does_not_match_user_role(
     )
 
     resp = await client.post("/authorize", headers=headers, json=request_body)
-    assert resp.status == 400
+    assert resp.status == 403
 
 
 @pytest.mark.integration

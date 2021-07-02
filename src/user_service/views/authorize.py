@@ -40,12 +40,11 @@ class AuthorizeView(View):
         except (
             InvalidTokenException,
             InvalidInputException,
-            InconsistentTokenException,
             IncompleteTokenException,
         ) as e:
             logging.debug(traceback.format_exc())
             raise HTTPUnauthorized(reason=e)
-        except UserNotAuthorizedException:
-            raise HTTPForbidden()
+        except (UserNotAuthorizedException, InconsistentTokenException) as e:
+            raise HTTPForbidden(reason=e)
 
         return Response(status=204)
