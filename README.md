@@ -1,7 +1,7 @@
 # user-service
 Back-end service to administer users and login
 
-
+Example of usage:
 ```
 % curl -H "Content-Type: application/json" \
   -X POST \
