@@ -53,25 +53,3 @@ To run tests with logging, do:
 ```
 % nox -s integration_tests -- --log-cli-level=DEBUG
 ```
-## Environment variables
-### `REDIS_HOST`
-Hostname where the remote redis is reachable on default port (6379).
-Default: localhost
-### `REDIS_PASSWORD`
-Password to the remote redis is reachable.
-Default: `6379`
-### `LOGGING_LEVEL`
-One of the supported levels found [here](https://docs.python.org/3/library/logging.html#levels).
-Default: `INFO`
-### `CONFIG`
-One of
-- `dev`: will not use cache backend
-- `test`: will not use cache backend
-- `production`: will require and use a redis backend, cf docker-compose.yml
-Default: `production`
-
-An example .env file for local development without use of redis cache:
-```
-LOGGING_LEVEL=DEBUG
-CONFIG=dev
-```
