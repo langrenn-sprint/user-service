@@ -20,7 +20,7 @@ class ReadyView(web.View):
             logging.debug(f"result of db-ping: {result}")
             if result["ok"] == 1:
                 return web.Response(text="OK")
-            raise web.HTTPInternalServerError
+            raise web.HTTPInternalServerError() from None
 
         return web.Response(text="OK")
 

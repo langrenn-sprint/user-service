@@ -67,9 +67,11 @@ class LoginService:
 
         # Evaluate what we have in the user-object:
         if not user:
-            raise UnknownUserException(f"Username {username} not found.")
+            raise UnknownUserException(f"Username {username} not found.") from None
         if password != user.password:
-            raise WrongPasswordException(f"Password for {username} did not match.")
+            raise WrongPasswordException(
+                f"Password for {username} did not match."
+            ) from None
 
         jwt_token = await create_access_token(user)
         return jwt_token

@@ -55,9 +55,11 @@ class UsersService:
         """
         # Validation:
         if user.id:
-            raise IllegalValueException("Cannot create user with input id-")
+            raise IllegalValueException("Cannot create user with input id-") from None
         if user.username == "admin":
-            raise IllegalValueException('Cannot create user with username "admin".')
+            raise IllegalValueException(
+                'Cannot create user with username "admin".'
+            ) from None
         # create id
         id = create_id()
         user.id = id
@@ -76,24 +78,24 @@ class UsersService:
         # return the document if found:
         if user:
             return User.from_dict(user)
-        raise UserNotFoundException(f"User with id {id} not found")
+        raise UserNotFoundException(f"User with id {id} not found") from None
 
     @classmethod
     async def update_user(cls: Any, db: Any, id: str, user: User) -> Optional[str]:
         """Get user function."""
         # Validation:
         if user.username == "admin":
-            raise IllegalValueException('Cannot change username to "admin".')
+            raise IllegalValueException('Cannot change username to "admin".') from None
         # get old document
         old_user = await UsersAdapter.get_user_by_id(db, id)
         # update the user if found:
         if old_user:
             if user.id != old_user["id"]:
-                raise IllegalValueException("Cannot change id for user.")
+                raise IllegalValueException("Cannot change id for user.") from None
             new_user = user.to_dict()
             result = await UsersAdapter.update_user(db, id, new_user)
             return result
-        raise UserNotFoundException(f"User with id {id} not found.")
+        raise UserNotFoundException(f"User with id {id} not found.") from None
 
     @classmethod
     async def delete_user(cls: Any, db: Any, id: str) -> Optional[str]:
@@ -104,4 +106,4 @@ class UsersService:
         if user:
             result = await UsersAdapter.delete_user(db, id)
             return result
-        raise UserNotFoundException(f"User with id {id} not found")
+        raise UserNotFoundException(f"User with id {id} not found") from None

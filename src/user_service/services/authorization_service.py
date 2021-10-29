@@ -81,9 +81,9 @@ class AuthorizationService:
         """
         # Validate input:
         if not token:
-            raise InvalidInputException("Token is required input.")
+            raise InvalidInputException("Token is required input.") from None
         if not target_roles:
-            raise InvalidInputException("Roles is required input.")
+            raise InvalidInputException("Roles is required input.") from None
 
         # Decode token:
         decoded_token = await decode_token(token)
@@ -93,7 +93,7 @@ class AuthorizationService:
         except KeyError as e:
             raise IncompleteTokenException(
                 f"Mandatory property in token {e.args[0]} is missing."
-            )
+            ) from e
 
         # Check username:
         # admin user is good
@@ -108,7 +108,7 @@ class AuthorizationService:
             if user.role != token_role:
                 raise InconsistentTokenException(
                     f"Inconsistent roles: user.role is {user.role} vs token_role {token_role}"
-                )
+                ) from None
 
         # We authorize if username is "admin" or if the user has sufficient role:
         if token_role in target_roles:
@@ -116,7 +116,7 @@ class AuthorizationService:
         else:
             raise UserNotAuthorizedException(
                 f"User {username} does not have sufficient role."
-            )
+            ) from None
 
 
 async def decode_token(token: Optional[str]) -> dict:
@@ -127,4 +127,4 @@ async def decode_token(token: Optional[str]) -> dict:
         return decoded
     except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:
         logging.debug(f"Got excpetion {e}")
-        raise InvalidTokenException(f"Token is invalid: {type(e)}")
+        raise InvalidTokenException(f"Token is invalid: {type(e)}") from e

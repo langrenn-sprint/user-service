@@ -60,18 +60,18 @@ class UsersView(View):
         except KeyError as e:
             raise HTTPUnprocessableEntity(
                 reason=f"Mandatory property {e.args[0]} is missing."
-            )
+            ) from e
 
         try:
             id = await UsersService.create_user(db, user)
-        except IllegalValueException:
-            raise HTTPUnprocessableEntity()
+        except IllegalValueException as e:
+            raise HTTPUnprocessableEntity() from e
         if id:
             logging.debug(f"inserted document with id {id}")
             headers = MultiDict({hdrs.LOCATION: f"{BASE_URL}/users/{id}"})
 
             return Response(status=201, headers=headers)
-        raise HTTPBadRequest()
+        raise HTTPBadRequest() from None
 
 
 class UserView(View):
@@ -89,8 +89,8 @@ class UserView(View):
         logging.debug(f"Got get request for user {id}")
         try:
             user = await UsersService.get_user_by_id(db, id)
-        except UserNotFoundException:
-            raise HTTPNotFound()
+        except UserNotFoundException as e:
+            raise HTTPNotFound() from e
 
         logging.debug(f"Got user: {user}")
         body = user.to_json()
@@ -110,16 +110,16 @@ class UserView(View):
         except KeyError as e:
             raise HTTPUnprocessableEntity(
                 reason=f"Mandatory property {e.args[0]} is missing."
-            )
+            ) from e
 
         id = self.request.match_info["id"]
         logging.debug(f"Got request-body {body} for {id} of type {type(body)}")
         try:
             id = await UsersService.update_user(db, id, user)
-        except IllegalValueException:
-            raise HTTPUnprocessableEntity()
-        except UserNotFoundException:
-            raise HTTPNotFound()
+        except IllegalValueException as e:
+            raise HTTPUnprocessableEntity() from e
+        except UserNotFoundException as e:
+            raise HTTPNotFound() from e
         return Response(status=204)
 
     async def delete(self) -> Response:
@@ -135,6 +135,6 @@ class UserView(View):
 
         try:
             id = await UsersService.delete_user(db, id)
-        except UserNotFoundException:
-            raise HTTPNotFound()
+        except UserNotFoundException as e:
+            raise HTTPNotFound() from e
         return Response(status=204)

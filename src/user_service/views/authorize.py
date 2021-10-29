@@ -29,8 +29,8 @@ class AuthorizeView(View):
         db = self.request.app["db"]
         try:
             body = await self.request.json()
-        except json.decoder.JSONDecodeError:
-            raise HTTPBadRequest(reason="Invalid data in request body.")
+        except json.decoder.JSONDecodeError as e:
+            raise HTTPBadRequest(reason="Invalid data in request body.") from e
 
         # Process:
         try:
@@ -43,8 +43,8 @@ class AuthorizeView(View):
             IncompleteTokenException,
         ) as e:
             logging.debug(traceback.format_exc())
-            raise HTTPUnauthorized(reason=e)
+            raise HTTPUnauthorized(reason=e) from e
         except (UserNotAuthorizedException, InconsistentTokenException) as e:
-            raise HTTPForbidden(reason=e)
+            raise HTTPForbidden(reason=e) from e
 
         return Response(status=204)
