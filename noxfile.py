@@ -82,7 +82,14 @@ def contract_tests(session: Session) -> None:
         "-m contract",
         "-rA",
         *args,
-        env={},
+        env={
+            "ADMIN_USERNAME": "admin",
+            "ADMIN_PASSWORD": "password",
+            "JWT_EXP_DELTA_SECONDS": "60",
+            "DB_USER": "admin",
+            "DB_PASSWORD": "admin",
+            "LOGGING_LEVEL": "DEBUG",
+        },
     )
 
 
