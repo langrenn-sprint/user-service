@@ -1,69 +1,70 @@
 [tool.poetry]
-name = "user-service"
-version = "0.1.0"
-description = "An API for admin of sporting users"
 authors = ["Stig B. Dørmænen <stigbd@gmail.com>", "Heming Harnæs <heming.harnaes@gmail.com"]
-license = "Apache-2.0"
-readme = "README.md"
-homepage = "https://github.com/langrenn-sprint/user-service"
-repository = "https://github.com/langrenn-sprint/user-service"
-classifiers=[
+classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: Apache Software License",
   "Operating System :: OS Independent",
 ]
+description = "An API for admin of sporting users"
+homepage = "https://github.com/langrenn-sprint/user-service"
+license = "Apache-2.0"
+name = "user-service"
+readme = "README.md"
+repository = "https://github.com/langrenn-sprint/user-service"
+version = "0.1.0"
+
 [tool.poetry.dependencies]
-python = "^3.9"
-gunicorn = "^20.0.4"
-aiohttp = "^3.7.2"
-motor = "^2.4.0"
-certifi = "^2021.5.30"
-aiodns = "^3.0.0"
-multidict = "^5.1.0"
-cchardet = "^2.1.7"
 PyJWT = "^2.1.0"
-dataclasses-json = "^0.5.4"
+aiodns = "^3.0.0"
+aiohttp = "^3.7.2"
 aiohttp-middlewares = "^1.1.0"
+cchardet = "^2.1.7"
+certifi = "^2021.5.30"
+dataclasses-json = "^0.5.4"
+gunicorn = "^20.0.4"
+motor = "^2.4.0"
+multidict = "^5.1.0"
+python = "^3.7"
 python-dotenv = "^0.19.1"
 
 [tool.poetry.dev-dependencies]
-pytest = "^6.1.1"
-pytest-docker = "^0.10.1"
-docker-compose = "^1.27.4"
+aiohttp-devtools = "^0.13.1"
 black = "^21.5b2"
+codecov = "^2.1.10"
+coverage = "^6.0.2"
+docker = "^5.0.0"
+docker-compose = "^1.27.4"
+flake8 = "^4.0.1"
+flake8-annotations = "^2.4.1"
 flake8-bandit = "^2.1.2"
 flake8-black = "^0.2.1"
 flake8-bugbear = "^21.4.3"
 flake8-docstrings = "^1.5.0"
+flake8-eradicate = "^1.2.0"
 flake8-import-order = "^0.18.1"
-safety = "^1.9.0"
-flake8-annotations = "^2.4.1"
-codecov = "^2.1.10"
-pytest-mock = "^3.3.1"
-pytest-aiohttp = "^0.3.0"
-aiohttp-devtools = "^0.13.1"
-requests = "^2.25.1"
-docker = "^5.0.0"
-coverage = "^6.0.2"
-flake8 = "^4.0.1"
+mypy = "^0.910"
 pep8-naming = "^0.12.1"
+pytest = "^6.1.1"
+pytest-aiohttp = "^0.3.0"
 pytest-asyncio = "^0.16.0"
 pytest-cov = "^3.0.0"
-mypy = "^0.910"
-flake8-eradicate = "^1.2.0"
+pytest-docker = "^0.10.1"
+pytest-mock = "^3.3.1"
+requests = "^2.25.1"
+safety = "^1.9.0"
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
 
 [tool.coverage.run]
 branch = false
-source = ["user_service"]
 omit = ["*gunicorn_config.py"]
+source = ["user_service"]
 
 [tool.coverage.report]
-show_missing = true
 fail_under = 100
+show_missing = true
 
 [build-system]
-requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
+requires = ["poetry>=0.12"]
