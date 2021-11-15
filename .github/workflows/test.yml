@@ -15,17 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Setup gcloud CLI
-        uses: google-github-actions/setup-gcloud@master
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
-
-      - name: Configure docker to use the gcloud command-line tool as a credential helper
-        run: |-
-          gcloud auth configure-docker eu.gcr.io
-
       - name: Set up Python 3.9
         uses: actions/setup-python@v2
         with:
