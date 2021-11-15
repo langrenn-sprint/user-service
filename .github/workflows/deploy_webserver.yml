@@ -37,4 +37,6 @@ jobs:
 
       - name: Tag and publish docker image to Github Container registry
         run: |-
+          docker tag ghcr.io/langrenn-sprint/user-service:test ghcr.io/langrenn-sprint/user-service:test
+          docker rmi ghcr.io/langrenn-sprint/user-service:test
           docker push ghcr.io/langrenn-sprint/user-service:latest
