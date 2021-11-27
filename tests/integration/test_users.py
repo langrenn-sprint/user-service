@@ -5,7 +5,6 @@ from typing import Any
 from aiohttp import hdrs
 from aiohttp.test_utils import TestClient as _TestClient
 import jwt
-from multidict import MultiDict
 import pytest
 from pytest_mock import MockFixture
 
@@ -93,12 +92,10 @@ async def test_create_user(
         "password": "secret",
         "role": "test",
     }
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
 
     resp = await client.post("/users", headers=headers, json=request_body)
     assert resp.status == 201
@@ -125,11 +122,9 @@ async def test_get_user_by_id(
         side_effect=mock_authorize,
     )
 
-    headers = MultiDict(
-        {
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
 
     resp = await client.get(f"/users/{ID}", headers=headers)
     assert resp.status == 200
@@ -161,12 +156,11 @@ async def test_update_user_by_id(
         side_effect=mock_authorize,
     )
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
+
     request_body = {
         "id": ID,
         "username": "updated.user@example.com",
@@ -196,11 +190,10 @@ async def test_list_users(
         side_effect=mock_authorize,
     )
 
-    headers = MultiDict(
-        {
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
+
     resp = await client.get("/users", headers=headers)
     assert resp.status == 200
     assert "application/json" in resp.headers[hdrs.CONTENT_TYPE]
@@ -231,11 +224,9 @@ async def test_delete_user_by_id(
         side_effect=mock_authorize,
     )
 
-    headers = MultiDict(
-        {
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
 
     resp = await client.delete(f"/users/{ID}", headers=headers)
     assert resp.status == 204
@@ -270,12 +261,10 @@ async def test_create_user_invalid_input(
         "username": "user@example.com",
         "password": "secret",
     }
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
 
     resp = await client.post("/users", headers=headers, json=request_body_lacks_role)
     assert resp.status == 422
@@ -309,12 +298,10 @@ async def test_create_user_with_id(
         "password": "secret",
         "role": "test_role",
     }
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
 
     resp = await client.post("/users", headers=headers, json=request_body_with_id)
     assert resp.status == 422
@@ -347,12 +334,10 @@ async def test_create_user_with_username_admin(
         "password": "secret",
         "role": "test_role",
     }
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
 
     resp = await client.post("/users", headers=headers, json=request_body)
     assert resp.status == 422
@@ -385,12 +370,10 @@ async def test_create_user_returns_none(
         "role": "test_role",
         "password": "secret",
     }
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
 
     resp = await client.post("/users", headers=headers, json=request_body_lacks_role)
     assert resp.status == 400
@@ -418,12 +401,11 @@ async def test_update_user_invalid_input(
         side_effect=mock_authorize,
     )
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
+
     request_body_lacks_role = {
         "id": ID,
         "username": "updated.user@example.com",
@@ -458,12 +440,11 @@ async def test_update_user_set_username_to_admin(
         side_effect=mock_authorize,
     )
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
+
     request_body = {
         "id": ID,
         "username": "admin",
@@ -497,12 +478,11 @@ async def test_update_user_change_ID(
         side_effect=mock_authorize,
     )
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
+
     request_body = {
         "id": "DifferentId",
         "username": "some.user@example.com",
@@ -531,11 +511,9 @@ async def test_get_user_not_found(
         "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
         side_effect=mock_user,
     )
-    headers = MultiDict(
-        {
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
 
     resp = await client.get(f"/users/{ID}", headers=headers)
     assert resp.status == 404
@@ -560,12 +538,11 @@ async def test_update_user_not_found(
         side_effect=mock_user,
     )
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
+
     request_body = {
         "id": ID,
         "username": "updated.user@example.com",
@@ -597,10 +574,9 @@ async def test_delete_user_not_found(
         side_effect=mock_user,
     )
 
-    headers = MultiDict(
-        {
-            hdrs.AUTHORIZATION: f"Bearer {token}",
-        },
-    )
+    headers = {
+        hdrs.AUTHORIZATION: f"Bearer {token}",
+    }
+
     resp = await client.delete(f"/users/{ID}", headers=headers)
     assert resp.status == 404

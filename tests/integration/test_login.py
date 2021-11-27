@@ -5,7 +5,6 @@ from typing import Any
 from aiohttp import hdrs
 from aiohttp.test_utils import TestClient as _TestClient
 import jwt
-from multidict import MultiDict
 import pytest
 from pytest_mock import MockFixture
 
@@ -31,11 +30,9 @@ async def test_login_admin_user_password(
         "username": os.getenv("ADMIN_USERNAME"),
         "password": os.getenv("ADMIN_PASSWORD"),
     }
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/login", headers=headers, json=request_body)
     assert resp.status == 200
@@ -59,11 +56,9 @@ async def test_login_valid_user_password(
         "username": "test",
         "password": "test",
     }
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/login", headers=headers, json=request_body)
     assert resp.status == 200
@@ -88,11 +83,9 @@ async def test_login_invalid_user(client: _TestClient, mocker: MockFixture) -> N
         "username": "NON_EXISTENT_USER",
         "password": os.getenv("ADMIN_PASSWORD"),
     }
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/login", headers=headers, json=request_body)
     assert resp.status == 401
@@ -109,11 +102,9 @@ async def test_login_wrong_password(client: _TestClient, mocker: MockFixture) ->
         "username": "test",
         "password": "WRONG_PASSWORD",
     }
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/login", headers=headers, json=request_body)
     assert resp.status == 401
@@ -124,11 +115,9 @@ async def test_login_no_body_in_request(
     client: _TestClient, mocker: MockFixture
 ) -> None:
     """Should return 400 Bad Request."""
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/login", headers=headers)
     assert resp.status == 400

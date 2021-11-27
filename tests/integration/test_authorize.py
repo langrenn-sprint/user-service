@@ -5,7 +5,6 @@ from typing import Any, Dict
 from aiohttp import hdrs
 from aiohttp.test_utils import TestClient as _TestClient
 import jwt
-from multidict import MultiDict
 import pytest
 from pytest_mock import MockFixture
 
@@ -83,11 +82,9 @@ async def test_authorize(
     """Should return 204 No content."""
     request_body = {"token": token, "roles": ["admin"]}
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/authorize", headers=headers, json=request_body)
     assert resp.status == 204
@@ -100,11 +97,9 @@ async def test_authorize_incomplete_token(
     """Should return 401 Unauthorized."""
     request_body = {"token": incomplete_token, "roles": ["admin"]}
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/authorize", headers=headers, json=request_body)
     assert resp.status == 401
@@ -122,11 +117,9 @@ async def test_authorize_non_priviledge_user(
 
     request_body = {"token": token_nonprivileged_user, "roles": ["admin"]}
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/authorize", headers=headers, json=request_body)
     assert resp.status == 403
@@ -143,11 +136,9 @@ async def test_authorize_no_body(
         side_effect=mock_inconsistent_user,
     )
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/authorize", headers=headers)
     assert resp.status == 400
@@ -165,11 +156,9 @@ async def test_authorize_invalid_body(
 
     invalid_body: Dict[Any, Any] = {"blabla": "bladibla"}
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/authorize", headers=headers, json=invalid_body)
     assert resp.status == 401
@@ -187,11 +176,9 @@ async def test_authorize_body_missing_required_input(
 
     request_body = {"token": token_nonprivileged_user}
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/authorize", headers=headers, json=request_body)
     assert resp.status == 401
@@ -209,11 +196,9 @@ async def test_authorize_token_role_does_not_match_user_role(
 
     request_body = {"token": token_nonprivileged_user, "roles": ["admin"]}
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/authorize", headers=headers, json=request_body)
     assert resp.status == 403
@@ -231,11 +216,9 @@ async def test_authorize_invalid_token(
 
     request_body = {"token": token_invalid, "roles": ["admin"]}
 
-    headers = MultiDict(
-        {
-            hdrs.CONTENT_TYPE: "application/json",
-        },
-    )
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
 
     resp = await client.post("/authorize", headers=headers, json=request_body)
     assert resp.status == 401

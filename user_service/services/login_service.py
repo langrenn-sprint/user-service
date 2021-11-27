@@ -38,7 +38,7 @@ class LoginService:
     """Class representing a service for users."""
 
     @classmethod
-    async def login(cls: Any, db: Any, username: str, password: str) -> bytes:
+    async def login(cls: Any, db: Any, username: str, password: str) -> str:
         """Check username and passord.
 
         Args:
@@ -47,7 +47,7 @@ class LoginService:
             password (str): the users password
 
         Returns:
-            bytes: A jwt token.
+            str: A jwt token.
 
         Raises:
             UnknownUserException: If the user is unknown to us
@@ -77,7 +77,7 @@ class LoginService:
         return jwt_token
 
 
-async def create_access_token(user: User) -> bytes:
+async def create_access_token(user: User) -> str:
     """Create a jwt based on username."""
     payload = {
         "username": user.username,

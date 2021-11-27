@@ -24,7 +24,7 @@ dataclasses-json = "^0.5.4"
 gunicorn = "^20.0.4"
 motor = "^2.4.0"
 multidict = "^5.1.0"
-python = "^3.7"
+python = ">=3.7,<3.10"
 python-dotenv = "^0.19.1"
 
 [tool.poetry.dev-dependencies]
@@ -50,11 +50,20 @@ pytest-asyncio = "^0.16.0"
 pytest-cov = "^3.0.0"
 pytest-docker = "^0.10.1"
 pytest-mock = "^3.3.1"
+pytype = "2021.11.2"
 requests = "^2.25.1"
 safety = "^1.9.0"
 
+[tool.pytest.ini_options]
+markers = [
+  "unit: marks tests as unit",
+  "integration: marks tests as integration",
+  "contract: marks tests as contract",
+  "asyncio",
+]
+
 [tool.coverage.paths]
-source = ["src", "*/site-packages"]
+source = ["user_service", "*/site-packages"]
 
 [tool.coverage.run]
 branch = false
@@ -64,6 +73,16 @@ source = ["user_service"]
 [tool.coverage.report]
 fail_under = 100
 show_missing = true
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
+module = [
+  "gunicorn.*",
+  "requests.*",
+  "motor.*",
+  "pytest_mock",
+  "aioresponses.*",
+]
 
 [build-system]
 build-backend = "poetry.core.masonry.api"

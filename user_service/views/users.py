@@ -68,7 +68,7 @@ class UsersView(View):
             raise HTTPUnprocessableEntity() from e
         if id:
             logging.debug(f"inserted document with id {id}")
-            headers = MultiDict({hdrs.LOCATION: f"{BASE_URL}/users/{id}"})
+            headers = MultiDict([(hdrs.LOCATION, f"{BASE_URL}/users/{id}")])
 
             return Response(status=201, headers=headers)
         raise HTTPBadRequest() from None
@@ -115,7 +115,7 @@ class UserView(View):
         id = self.request.match_info["id"]
         logging.debug(f"Got request-body {body} for {id} of type {type(body)}")
         try:
-            id = await UsersService.update_user(db, id, user)
+            await UsersService.update_user(db, id, user)
         except IllegalValueException as e:
             raise HTTPUnprocessableEntity() from e
         except UserNotFoundException as e:
@@ -134,7 +134,7 @@ class UserView(View):
         logging.debug(f"Got delete request for user {id}")
 
         try:
-            id = await UsersService.delete_user(db, id)
+            await UsersService.delete_user(db, id)
         except UserNotFoundException as e:
             raise HTTPNotFound() from e
         return Response(status=204)
