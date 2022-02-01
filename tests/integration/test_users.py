@@ -179,7 +179,7 @@ async def test_list_users(
     """Should return OK and a valid json body."""
     mocker.patch(
         "user_service.adapters.users_adapter.UsersAdapter.get_all_users",
-        return_value=[{"id": ID, "username": "Oslo Skagen Sprint"}],
+        return_value=[{"id": ID, "username": "Oslo Skagen Sprint", "role": "test"}],
     )
     mocker.patch(
         "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",

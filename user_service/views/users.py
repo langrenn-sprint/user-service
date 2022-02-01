@@ -41,7 +41,14 @@ class UsersView(View):
 
         # Process request:
         users = await UsersService.get_all_users(db)
-        body = json.dumps(users, default=str, ensure_ascii=False)
+        # We add to list and remove the password attribute from the response:
+        list = []
+        for user in users:
+            dict_user = user.to_dict()
+            dict_user.pop("password", None)
+            list.append(dict_user)
+
+        body = json.dumps(list, default=str, ensure_ascii=False)
         return Response(status=200, body=body, content_type="application/json")
 
     async def post(self) -> Response:
@@ -93,7 +100,10 @@ class UserView(View):
             raise HTTPNotFound() from e
 
         logging.debug(f"Got user: {user}")
-        body = user.to_json()
+        # We remove the password attribute from the response:
+        user_dict = user.to_dict()
+        user_dict.pop("password", None)
+        body = json.dumps(user_dict, default=str, ensure_ascii=False)
         return Response(status=200, body=body, content_type="application/json")
 
     async def put(self) -> Response:

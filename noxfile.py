@@ -55,7 +55,7 @@ def integration_tests(session: Session) -> None:
     session.run(
         "pytest",
         "-m integration",
-        "-rA",
+        "-rF",
         *args,
         env={
             "CONFIG": "test",

@@ -58,6 +58,8 @@ async def test_users(http_service: Any, token: MockFixture) -> None:
     assert "application/json" in response.headers[hdrs.CONTENT_TYPE]
     assert type(users) is list
     assert len(users) == 1
+    for user in users:
+        assert "password" not in user
 
 
 @pytest.mark.contract
@@ -83,6 +85,7 @@ async def test_get_user(http_service: Any, token: MockFixture) -> None:
     assert type(user) is dict
     assert user["id"]
     assert user["username"]
+    assert "password" not in user
 
 
 @pytest.mark.contract
