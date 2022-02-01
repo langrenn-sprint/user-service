@@ -27,6 +27,22 @@ Layers:
 - models: model-classes
 - adapters: adapters to external services
 
+## Environment variables
+
+To run the service locally, you need to supply a set of environment variables. A simple way to solve this is to supply a .env file in the root directory.
+
+A minimal .env:
+
+```shell
+JWT_SECRET=secret
+JWT_EXP_DELTA_SECONDS=3600
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=passw123
+DB_USER=admin
+DB_PASSWORD=admin
+LOGGING_LEVEL=DEBUG
+```
+
 ## Running the API locally
 
 Start the server locally:

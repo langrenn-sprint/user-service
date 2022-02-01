@@ -22,9 +22,9 @@ jobs:
           architecture: x64
 
       - name: Install dependencies
-        run: |-
-          pipx install poetry==1.1.11
-          pipx install nox==2021.10.1
+        run: |
+          pipx install poetry==1.1.12
+          pipx install nox==2022.1.12
           pipx inject nox nox-poetry
 
       - name: Build image and test with nox
