@@ -36,7 +36,11 @@ class UsersService:
     @classmethod
     async def get_all_users(cls: Any, db: Any) -> List[User]:
         """Get all users function."""
-        users = await UsersAdapter.get_all_users(db)
+        users: List[User] = []
+        _users = await UsersAdapter.get_all_users(db)
+        for _user in _users:
+            user = User.from_dict(_user)
+            users.append(user)
         return users
 
     @classmethod
