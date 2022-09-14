@@ -23,8 +23,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pipx install poetry==1.1.12
-          pipx install nox==2022.1.7
+          pipx install poetry==1.2.0
+          pipx install nox==2022.8.7
           pipx inject nox nox-poetry
 
       - name: Build image and test with nox
