@@ -25,11 +25,7 @@ class LoginView(web.View):
         password = body.get("password", None)
         try:
             jwt_token = await LoginService.login(db, username, password)
-        except UnknownUserException as e:
-            raise web.HTTPUnauthorized(reason=f"Unknown user {username}.") from e
-        except WrongPasswordException as e:
-            raise web.HTTPUnauthorized(
-                reason=f"Wrong password for user {username}."
-            ) from e
+        except (UnknownUserException, WrongPasswordException) as e:
+            raise web.HTTPUnauthorized(reason="Incorrect username or password") from e
 
         return web.json_response({"token": jwt_token})

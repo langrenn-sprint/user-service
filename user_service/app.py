@@ -4,7 +4,8 @@ import os
 from typing import Any
 
 from aiohttp import web
-from aiohttp_middlewares import cors_middleware, error_middleware
+from aiohttp_middlewares.cors import cors_middleware
+from aiohttp_middlewares.error import error_middleware
 import motor.motor_asyncio
 
 from .views import (
@@ -62,6 +63,6 @@ async def create_app() -> web.Application:
 
         mongo.close()
 
-    app.cleanup_ctx.append(mongo_context)
+    app.cleanup_ctx.append(mongo_context)  # type: ignore
 
     return app
