@@ -56,7 +56,7 @@ async def create_app() -> web.Application:
         mongo = motor.motor_asyncio.AsyncIOMotorClient(
             host=DB_HOST, port=DB_PORT, username=DB_USER, password=DB_PASSWORD
         )
-        db = mongo.DB_NAME
+        db = mongo[f"{DB_NAME}"]
         app["db"] = db
 
         yield
