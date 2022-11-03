@@ -21,7 +21,7 @@ from .views import (
 LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = int(os.getenv("DB_PORT", 27017))
-DB_NAME = os.getenv("DB_NAME", "test")
+DB_NAME = os.getenv("DB_NAME", "users")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
