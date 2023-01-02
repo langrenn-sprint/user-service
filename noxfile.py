@@ -88,6 +88,7 @@ def contract_tests(session: Session) -> None:
             "ADMIN_PASSWORD": "password",
             "JWT_EXP_DELTA_SECONDS": "60",
             "JWT_SECRET": "secret",
+            "DB_NAME": "users_test",
             "DB_USER": "admin",
             "DB_PASSWORD": "admin",
             "LOGGING_LEVEL": "DEBUG",
