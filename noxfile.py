@@ -19,6 +19,52 @@ nox.options.sessions = (
 )
 
 
+@session(python=["3.10"])
+def clean(session: Session) -> None:
+    """Clean the project."""
+    session.run(
+        "py3clean",
+        ".",
+        external=True,
+    )
+    session.run(
+        "rm",
+        "-rf",
+        ".cache",
+        external=True,
+    )
+    session.run(
+        "rm",
+        "-rf",
+        ".pytest_cache",
+        external=True,
+    )
+    session.run(
+        "rm",
+        "-rf",
+        ".pytype",
+        external=True,
+    )
+    session.run(
+        "rm",
+        "-rf",
+        "dist",
+        external=True,
+    )
+    session.run(
+        "rm",
+        "-rf",
+        ".mypy_cache",
+        external=True,
+    )
+    session.run(
+        "rm",
+        "-f",
+        ".coverage",
+        external=True,
+    )
+
+
 @session(python="3.10")
 def unit_tests(session: Session) -> None:
     """Run the unit test suite."""
@@ -118,7 +164,6 @@ def lint(session: Session) -> None:
         "flake8-import-order",
         "darglint",
         "flake8-assertive",
-        "flake8-eradicate",
     )
     session.run("flake8", *args)
 
