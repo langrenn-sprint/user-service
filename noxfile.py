@@ -112,7 +112,7 @@ def integration_tests(session: Session) -> None:
     )
 
 
-@session(python=["3.10", "3.11"])
+@session(python=["3.11"])
 def contract_tests(session: Session) -> None:
     """Run the contract test suite."""
     args = session.posargs
