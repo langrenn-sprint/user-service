@@ -1,4 +1,5 @@
 """Resource module for users resources."""
+
 import json
 import logging
 import os

@@ -1,4 +1,5 @@
 """Resource module for login resources."""
+
 import json
 
 from aiohttp import web

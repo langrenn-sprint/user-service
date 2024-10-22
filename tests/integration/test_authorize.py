@@ -1,4 +1,5 @@
 """Integration test cases for the authorize route."""
+
 import os
 from typing import Any, Dict
 

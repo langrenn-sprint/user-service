@@ -1,4 +1,5 @@
 """Contract test cases for ping."""
+
 import logging
 import os
 from typing import Any, AsyncGenerator
@@ -26,7 +27,6 @@ def token() -> str:
 
 
 @pytest.fixture(scope="module")
-@pytest.mark.asyncio
 async def clear_db(http_service: Any, token: MockFixture) -> AsyncGenerator:
     """Delete all events before we start."""
     mongo = motor.motor_asyncio.AsyncIOMotorClient(  # type: ignore

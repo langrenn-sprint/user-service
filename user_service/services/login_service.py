@@ -1,5 +1,6 @@
 """Module for login functions."""
-from datetime import datetime, timedelta
+
+from datetime import datetime, timedelta, UTC
 import os
 from typing import Any, Optional
 
@@ -82,7 +83,7 @@ async def create_access_token(user: User) -> str:
     payload = {
         "username": user.username,
         "role": user.role,
-        "exp": datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS),
+        "exp": datetime.now(UTC) + timedelta(seconds=JWT_EXP_DELTA_SECONDS),
     }
     jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)  # type: ignore
 

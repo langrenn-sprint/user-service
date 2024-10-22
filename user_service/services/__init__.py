@@ -1,4 +1,5 @@
 """Package for all services."""
+
 from .authorization_service import (
     AuthorizationService,
     IncompleteTokenException,

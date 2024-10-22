@@ -1,4 +1,5 @@
 """Contract test cases for ping."""
+
 import os
 from typing import Any
 

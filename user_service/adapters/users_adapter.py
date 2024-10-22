@@ -1,4 +1,5 @@
 """Module for user adapter."""
+
 import logging
 from typing import Any, List, Optional
 

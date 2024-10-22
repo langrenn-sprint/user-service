@@ -1,4 +1,5 @@
 """Conftest module."""
+
 import os
 from os import environ as env
 import time
@@ -7,8 +8,8 @@ from typing import Any
 from aiohttp.test_utils import TestClient as _TestClient
 from dotenv import load_dotenv
 import pytest
-import requests
-from requests.exceptions import ConnectionError
+import requests  # type: ignore
+from requests.exceptions import ConnectionError  # type: ignore
 
 from user_service import create_app
 
@@ -16,7 +17,6 @@ load_dotenv()
 HOST_PORT = int(env.get("HOST_PORT", "8080"))
 
 
-@pytest.mark.integration
 @pytest.fixture
 async def client(aiohttp_client: Any) -> _TestClient:
     """Instantiate server and start it."""
@@ -36,7 +36,6 @@ def is_responsive(url: Any) -> Any:
         return False
 
 
-@pytest.mark.contract
 @pytest.fixture(scope="session")
 def http_service(docker_ip: Any, docker_services: Any) -> Any:
     """Ensure that HTTP service is up and responsive."""
@@ -49,7 +48,6 @@ def http_service(docker_ip: Any, docker_services: Any) -> Any:
     return url
 
 
-@pytest.mark.contract
 @pytest.fixture(scope="session")
 def docker_compose_file(pytestconfig: Any) -> Any:
     """Override default location of docker-compose.yml file."""

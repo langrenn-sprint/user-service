@@ -1,4 +1,5 @@
 """Module for authorize functions."""
+
 import logging
 import os
 from typing import Any, List, Optional

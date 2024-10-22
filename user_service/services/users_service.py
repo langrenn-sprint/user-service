@@ -1,4 +1,5 @@
 """Module for users service."""
+
 import logging
 from typing import Any, List, Optional
 import uuid

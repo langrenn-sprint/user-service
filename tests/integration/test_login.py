@@ -1,4 +1,5 @@
 """Integration test cases for the login route."""
+
 import os
 from typing import Any
 

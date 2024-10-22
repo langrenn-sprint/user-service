@@ -1,4 +1,5 @@
 """Unit test cases for the security module."""
+
 import os
 
 import jwt

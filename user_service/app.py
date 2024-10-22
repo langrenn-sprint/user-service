@@ -1,4 +1,5 @@
 """Module for admin of sporting users."""
+
 import logging
 import os
 from typing import Any

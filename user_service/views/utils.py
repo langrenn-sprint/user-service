@@ -1,4 +1,5 @@
 """Resource module for utils."""
+
 from typing import Optional
 
 from aiohttp.web import (

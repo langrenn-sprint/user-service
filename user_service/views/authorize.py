@@ -1,4 +1,5 @@
 """Resource module for authorize resources."""
+
 import json
 import logging
 import traceback
