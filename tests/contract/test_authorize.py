@@ -1,11 +1,12 @@
 """Contract test cases for ping."""
 
 import os
+from http import HTTPStatus
 from typing import Any
 
-from aiohttp import ClientSession, hdrs
 import jwt
 import pytest
+from aiohttp import ClientSession, hdrs
 from pytest_mock import MockFixture
 
 
@@ -15,7 +16,7 @@ def token() -> str:
     secret = os.getenv("JWT_SECRET")
     algorithm = "HS256"
     payload = {"username": os.getenv("ADMIN_USERNAME"), "role": "admin"}
-    return jwt.encode(payload, secret, algorithm)  # type: ignore
+    return jwt.encode(payload, secret, algorithm)
 
 
 @pytest.mark.contract
@@ -33,12 +34,12 @@ async def test_authorize(http_service: Any, token: MockFixture) -> None:
         pass
     await session.close()
 
-    assert response.status == 204
+    assert response.status == HTTPStatus.NO_CONTENT
 
 
 @pytest.mark.contract
 @pytest.mark.asyncio
-async def test_authorize_no_token(http_service: Any, token: MockFixture) -> None:
+async def test_authorize_token_value_none(http_service: Any) -> None:
     """Should return 401 Unauthorized."""
     url = f"{http_service}/authorize"
     request_body = {"token": None, "roles": ["admin"]}
@@ -51,9 +52,29 @@ async def test_authorize_no_token(http_service: Any, token: MockFixture) -> None
         body = await response.json()
     await session.close()
 
+    assert response.status == HTTPStatus.UNAUTHORIZED
     assert response.content_type == "application/json"
     assert body.get("detail") == "Token is required input."
-    assert response.status == 401
+
+
+@pytest.mark.contract
+@pytest.mark.asyncio
+async def test_authorize_no_token(http_service: Any) -> None:
+    """Should return 401 Unauthorized."""
+    url = f"{http_service}/authorize"
+    request_body = {"roles": ["admin"]}
+
+    headers = {
+        hdrs.CONTENT_TYPE: "application/json",
+    }
+    session = ClientSession()
+    async with session.post(url, headers=headers, json=request_body) as response:
+        body = await response.json()
+    await session.close()
+
+    assert response.status == HTTPStatus.UNAUTHORIZED
+    assert response.content_type == "application/json"
+    assert body.get("detail") == "Token is required input."
 
 
 @pytest.mark.contract
@@ -71,6 +92,6 @@ async def test_authorize_wrong_role(http_service: Any, token: MockFixture) -> No
         body = await response.json()
     await session.close()
 
+    assert response.status == HTTPStatus.FORBIDDEN
     assert response.content_type == "application/json"
     assert body.get("detail") == "User admin does not have sufficient role."
-    assert response.status == 403

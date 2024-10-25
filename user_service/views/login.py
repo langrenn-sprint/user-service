@@ -6,8 +6,8 @@ from aiohttp import web
 
 from user_service.services import (
     LoginService,
-    UnknownUserException,
-    WrongPasswordException,
+    UnknownUserError,
+    WrongPasswordError,
 )
 
 
@@ -26,7 +26,7 @@ class LoginView(web.View):
         password = body.get("password", None)
         try:
             jwt_token = await LoginService.login(db, username, password)
-        except (UnknownUserException, WrongPasswordException) as e:
+        except (UnknownUserError, WrongPasswordError) as e:
             raise web.HTTPUnauthorized(reason="Incorrect username or password") from e
 
         return web.json_response({"token": jwt_token})

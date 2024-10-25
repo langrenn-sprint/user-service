@@ -1,10 +1,11 @@
 """Module for login functions."""
 
-from datetime import datetime, timedelta, UTC
 import os
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import jwt
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from user_service.adapters import UsersAdapter
 from user_service.models import Role, User
@@ -12,12 +13,12 @@ from user_service.models import Role, User
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
-JWT_SECRET: Optional[str] = os.getenv("JWT_SECRET")
+JWT_SECRET: str | None = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
-JWT_EXP_DELTA_SECONDS = int(os.getenv("JWT_EXP_DELTA_SECONDS", 60))
+JWT_EXP_DELTA_SECONDS = int(os.getenv("JWT_EXP_DELTA_SECONDS", "60"))
 
 
-class WrongPasswordException(Exception):
+class WrongPasswordError(Exception):
     """Class representing custom exception for authorization."""
 
     def __init__(self, message: str) -> None:
@@ -26,7 +27,7 @@ class WrongPasswordException(Exception):
         super().__init__(message)
 
 
-class UnknownUserException(Exception):
+class UnknownUserError(Exception):
     """Class representing custom exception for authorization."""
 
     def __init__(self, message: str) -> None:
@@ -39,7 +40,9 @@ class LoginService:
     """Class representing a service for users."""
 
     @classmethod
-    async def login(cls: Any, db: Any, username: str, password: str) -> str:
+    async def login(
+        cls: Any, db: AsyncIOMotorDatabase, username: str, password: str
+    ) -> str:
         """Check username and passord.
 
         Args:
@@ -51,8 +54,9 @@ class LoginService:
             str: A jwt token.
 
         Raises:
-            UnknownUserException: If the user is unknown to us
-            WrongPasswordException: If the password does not match our records
+            UnknownUserError: If the user is unknown to us
+            WrongPasswordError: If the password does not match our records
+
         """
         # First we see if it is the admin trying to log in.
         # Then we need to check if we have the user in our db,
@@ -68,14 +72,13 @@ class LoginService:
 
         # Evaluate what we have in the user-object:
         if not user:
-            raise UnknownUserException(f"Username {username} not found.") from None
+            msg = f"Username {username} not found."
+            raise UnknownUserError(msg) from None
         if password != user.password:
-            raise WrongPasswordException(
-                f"Password for {username} did not match."
-            ) from None
+            msg = f"Password for {username} did not match."
+            raise WrongPasswordError(msg) from None
 
-        jwt_token = await create_access_token(user)
-        return jwt_token
+        return await create_access_token(user)
 
 
 async def create_access_token(user: User) -> str:
@@ -85,6 +88,4 @@ async def create_access_token(user: User) -> str:
         "role": user.role,
         "exp": datetime.now(UTC) + timedelta(seconds=JWT_EXP_DELTA_SECONDS),
     }
-    jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)  # type: ignore
-
-    return jwt_token
+    return jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)

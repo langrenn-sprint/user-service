@@ -1,15 +1,16 @@
 """Conftest module."""
 
-import os
-from os import environ as env
 import time
+from http import HTTPStatus
+from os import environ as env
+from pathlib import Path
 from typing import Any
 
+import pytest
+import requests
 from aiohttp.test_utils import TestClient as _TestClient
 from dotenv import load_dotenv
-import pytest
-import requests  # type: ignore
-from requests.exceptions import ConnectionError  # type: ignore
+from requests.exceptions import ConnectionError
 
 from user_service import create_app
 
@@ -24,16 +25,17 @@ async def client(aiohttp_client: Any) -> _TestClient:
     return await aiohttp_client(app)
 
 
-def is_responsive(url: Any) -> Any:
+def is_responsive(url: str) -> bool:
     """Return true if response from service is 200."""
     url = f"{url}/ready"
     try:
         response = requests.get(url, timeout=30)
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK:
             time.sleep(2)  # sleep extra 2 sec
             return True
     except ConnectionError:
-        return False
+        pass
+    return False
 
 
 @pytest.fixture(scope="session")
@@ -41,7 +43,7 @@ def http_service(docker_ip: Any, docker_services: Any) -> Any:
     """Ensure that HTTP service is up and responsive."""
     # `port_for` takes a container port and returns the corresponding host port
     port = docker_services.port_for("user-service", HOST_PORT)
-    url = "http://{}:{}".format(docker_ip, port)
+    url = f"http://{docker_ip}:{port}"
     docker_services.wait_until_responsive(
         timeout=30.0, pause=0.1, check=lambda: is_responsive(url)
     )
@@ -51,4 +53,4 @@ def http_service(docker_ip: Any, docker_services: Any) -> Any:
 @pytest.fixture(scope="session")
 def docker_compose_file(pytestconfig: Any) -> Any:
     """Override default location of docker-compose.yml file."""
-    return os.path.join(str(pytestconfig.rootdir), "docker-compose.yml")
+    return Path(str(pytestconfig.rootdir)) / "docker-compose.yml"

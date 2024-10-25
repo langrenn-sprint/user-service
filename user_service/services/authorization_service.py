@@ -2,20 +2,21 @@
 
 import logging
 import os
-from typing import Any, List, Optional
+from typing import Any
 
 import jwt
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from user_service.adapters import UsersAdapter
 from user_service.models import User
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 
-JWT_SECRET: Optional[str] = os.getenv("JWT_SECRET")
+JWT_SECRET: str | None = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 
 
-class InvalidInputException(Exception):
+class AuthorizationError(Exception):
     """Class representing custom exception for authorization."""
 
     def __init__(self, message: str) -> None:
@@ -24,7 +25,7 @@ class InvalidInputException(Exception):
         super().__init__(message)
 
 
-class UserNotAuthorizedException(Exception):
+class InvalidInputError(AuthorizationError):
     """Class representing custom exception for authorization."""
 
     def __init__(self, message: str) -> None:
@@ -33,7 +34,16 @@ class UserNotAuthorizedException(Exception):
         super().__init__(message)
 
 
-class InvalidTokenException(Exception):
+class UserNotAuthorizedError(AuthorizationError):
+    """Class representing custom exception for authorization."""
+
+    def __init__(self, message: str) -> None:
+        """Initialize the error."""
+        # Call the base class constructor with the parameters it needs
+        super().__init__(message)
+
+
+class InvalidTokenError(AuthorizationError):
     """Class representing custom exception for token validation."""
 
     def __init__(self, message: str) -> None:
@@ -42,7 +52,7 @@ class InvalidTokenException(Exception):
         super().__init__(message)
 
 
-class InconsistentTokenException(Exception):
+class InconsistentTokenError(AuthorizationError):
     """Class representing custom exception for token verification."""
 
     def __init__(self, message: str) -> None:
@@ -51,7 +61,7 @@ class InconsistentTokenException(Exception):
         super().__init__(message)
 
 
-class IncompleteTokenException(Exception):
+class IncompleteTokenError(AuthorizationError):
     """Class representing custom exception for token verification."""
 
     def __init__(self, message: str) -> None:
@@ -65,7 +75,7 @@ class AuthorizationService:
 
     @classmethod
     async def authorize(
-        cls: Any, db: Any, token: Optional[str], target_roles: List[str]
+        cls: Any, db: AsyncIOMotorDatabase, token: str | None, target_roles: list[str]
     ) -> None:
         """Check token and check role against role in token.
 
@@ -75,16 +85,19 @@ class AuthorizationService:
             target_roles (List[str]): the roles to be checked against
 
         Raises:
-            UserNotAuthorizedException: user's role does not match target role
-            IncompleteTokenException: token lacks mandatory attributes
-            InconsistentTokenException: role in token is different from users role
-            InvalidInputException: required input parameter is missing
+            UserNotAuthorizedError: user's role does not match target role
+            IncompleteTokenError: token lacks mandatory attributes
+            InconsistentTokenError: role in token is different from users role
+            InvalidInputError: required input parameter is missing
+
         """
         # Validate input:
         if not token:
-            raise InvalidInputException("Token is required input.") from None
+            msg = "Token is required input."
+            raise InvalidInputError(msg) from None
         if not target_roles:
-            raise InvalidInputException("Roles is required input.") from None
+            msg = "Roles is required input."
+            raise InvalidInputError(msg) from None
 
         # Decode token:
         decoded_token = await decode_token(token)
@@ -92,9 +105,8 @@ class AuthorizationService:
             username = decoded_token["username"]
             token_role = decoded_token["role"]
         except KeyError as e:
-            raise IncompleteTokenException(
-                f"Mandatory property in token {e.args[0]} is missing."
-            ) from e
+            msg = f"Mandatory property in token {e.args[0]} is missing."
+            raise IncompleteTokenError(msg) from e
 
         # Check username:
         # admin user is good
@@ -102,30 +114,34 @@ class AuthorizationService:
             pass
         else:
             # Check if user given by username exists in our records:
-            logging.debug(f"Trying to verify user with username: {username}")
+            logging.debug("Trying to verify user with username: %s", username)
             _user = await UsersAdapter.get_user_by_username(db, username)
             user = User.from_dict(_user)
             # Verify that user has role given in token:
             if user.role != token_role:
-                raise InconsistentTokenException(
-                    f"Inconsistent roles: user.role is {user.role} vs token_role {token_role}"
-                ) from None
+                msg = (
+                    f"Inconsistent roles: user.role is {user.role} "
+                    f"vs token_role {token_role}"
+                )
+                raise InconsistentTokenError(msg) from None
 
         # We authorize if username is "admin" or if the user has sufficient role:
         if token_role in target_roles:
             pass
         else:
-            raise UserNotAuthorizedException(
-                f"User {username} does not have sufficient role."
-            ) from None
+            msg = f"User {username} does not have sufficient role."
+            raise UserNotAuthorizedError(msg) from None
 
 
-async def decode_token(token: Optional[str]) -> dict:
+async def decode_token(token: str | None) -> dict:
     """Decode token."""
-    logging.debug(f"Got jwt_token {token}")
+    logging.debug("Got jwt_token %s", token)
+    if not token:  # pragma: no cover
+        msg = "Token is required input."
+        raise InvalidInputError(msg)
     try:
-        decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])  # type: ignore
-        return decoded
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:
-        logging.debug(f"Got excpetion {e}")
-        raise InvalidTokenException(f"Token is invalid: {type(e)}") from e
+        logging.debug("Got excpetion %s", e)
+        msg = f"Token is invalid: {type(e)}"
+        raise InvalidTokenError(msg) from e

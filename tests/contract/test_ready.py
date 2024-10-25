@@ -1,9 +1,10 @@
 """Contract test cases for ready."""
 
+from http import HTTPStatus
 from typing import Any
 
-from aiohttp import ClientSession
 import pytest
+from aiohttp import ClientSession
 
 
 @pytest.mark.contract
@@ -17,5 +18,5 @@ async def test_ready(http_service: Any) -> None:
         text = await response.text()
     await session.close()
 
-    assert response.status == 200
+    assert response.status == HTTPStatus.OK
     assert text == "OK"

@@ -1,7 +1,9 @@
 """Module for user adapter."""
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
+from typing import Any
+
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 
 class Adapter(ABC):
@@ -9,42 +11,44 @@ class Adapter(ABC):
 
     @classmethod
     @abstractmethod
-    async def get_all_users(cls: Any, db: Any) -> List:  # pragma: no cover
+    async def get_all_users(cls: Any, db: AsyncIOMotorDatabase) -> list:
         """Get all users function."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
-    async def create_user(cls: Any, db: Any, user: dict) -> str:  # pragma: no cover
-        """Create user function."""
-        raise NotImplementedError()
+    async def create_user(cls: Any, db: AsyncIOMotorDatabase, user: dict) -> str:
+        """Create user function and return id."""
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
-    async def get_user_by_id(cls: Any, db: Any, id: str) -> dict:  # pragma: no cover
+    async def get_user_by_id(
+        cls: Any, db: AsyncIOMotorDatabase, user_id: str
+    ) -> dict | None:
         """Get user by id function."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
     async def get_user_by_username(
-        cls: Any, db: Any, username: str
-    ) -> dict:  # pragma: no cover
-        """Get user function."""
-        raise NotImplementedError()
+        cls: Any, db: AsyncIOMotorDatabase, username: str
+    ) -> dict | None:
+        """Get user by name function."""
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
     async def update_user(
-        cls: Any, db: Any, id: str, user: dict
-    ) -> Optional[str]:  # pragma: no cover
-        """Get user function."""
-        raise NotImplementedError()
+        cls: Any, db: AsyncIOMotorDatabase, user_id: str, user: dict
+    ) -> str | None:
+        """Update user and return id."""
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
     async def delete_user(
-        cls: Any, db: Any, id: str
-    ) -> Optional[str]:  # pragma: no cover
-        """Get user function."""
-        raise NotImplementedError()
+        cls: Any, db: AsyncIOMotorDatabase, user_id: str
+    ) -> str | None:
+        """Delete user function."""
+        raise NotImplementedError

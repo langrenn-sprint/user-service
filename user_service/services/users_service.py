@@ -1,19 +1,21 @@
 """Module for users service."""
 
 import logging
-from typing import Any, List, Optional
 import uuid
+from typing import Any
+
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from user_service.adapters import UsersAdapter
 from user_service.models import User
 
 
-def create_id() -> str:  # pragma: no cover
-    """Creates an uuid."""
-    return str(uuid.uuid4())
+def create_id() -> str:
+    """Create an uuid."""
+    return str(uuid.uuid4())  # pragma: no cover
 
 
-class UserNotFoundException(Exception):
+class IllegalValueError(Exception):
     """Class representing custom exception for fetch method."""
 
     def __init__(self, message: str) -> None:
@@ -22,8 +24,8 @@ class UserNotFoundException(Exception):
         super().__init__(message)
 
 
-class IllegalValueException(Exception):
-    """Class representing custom exception for create method."""
+class UserNotFoundError(Exception):
+    """Class representing custom exception for fetch method."""
 
     def __init__(self, message: str) -> None:
         """Initialize the error."""
@@ -35,9 +37,9 @@ class UsersService:
     """Class representing a service for users."""
 
     @classmethod
-    async def get_all_users(cls: Any, db: Any) -> List[User]:
+    async def get_all_users(cls: Any, db: AsyncIOMotorDatabase) -> list[User]:
         """Get all users function."""
-        users: List[User] = []
+        users: list[User] = []
         _users = await UsersAdapter.get_all_users(db)
         for _user in _users:
             user = User.from_dict(_user)
@@ -45,7 +47,7 @@ class UsersService:
         return users
 
     @classmethod
-    async def create_user(cls: Any, db: Any, user: User) -> Optional[str]:
+    async def create_user(cls: Any, db: AsyncIOMotorDatabase, user: User) -> str | None:
         """Create user function.
 
         Args:
@@ -56,59 +58,66 @@ class UsersService:
             Optional[str]: The id of the created user. None otherwise.
 
         Raises:
-            IllegalValueException: input object has illegal values
+            IllegalValueError: input object has illegal values
+
         """
         # Validation:
         if user.id:
-            raise IllegalValueException("Cannot create user with input id-") from None
+            msg = "Cannot create user with input id-"
+            raise IllegalValueError(msg) from None
         if user.username == "admin":
-            raise IllegalValueException(
-                'Cannot create user with username "admin".'
-            ) from None
+            msg = 'Cannot create user with username "admin".'
+            raise IllegalValueError(msg) from None
         # create id
-        id = create_id()
-        user.id = id
+        user_id = create_id()
+        user.id = user_id
         # insert new user
         new_user = user.to_dict()
         result = await UsersAdapter.create_user(db, new_user)
-        logging.debug(f"inserted user with id: {id}")
+        logging.debug("inserted user with id: %s", user_id)
         if result:
-            return id
+            return user_id
         return None
 
     @classmethod
-    async def get_user_by_id(cls: Any, db: Any, id: str) -> User:
+    async def get_user_by_id(cls: Any, db: AsyncIOMotorDatabase, user_id: str) -> User:
         """Get user function."""
-        user = await UsersAdapter.get_user_by_id(db, id)
+        user = await UsersAdapter.get_user_by_id(db, user_id)
         # return the document if found:
         if user:
             return User.from_dict(user)
-        raise UserNotFoundException(f"User with id {id} not found") from None
+        msg = f"User with id {user_id} not found"
+        raise IllegalValueError(msg) from None
 
     @classmethod
-    async def update_user(cls: Any, db: Any, id: str, user: User) -> Optional[str]:
+    async def update_user(
+        cls: Any, db: AsyncIOMotorDatabase, user_id: str, user: User
+    ) -> str | None:
         """Get user function."""
         # Validation:
         if user.username == "admin":
-            raise IllegalValueException('Cannot change username to "admin".') from None
+            msg = 'Cannot change username to "admin".'
+            raise IllegalValueError(msg) from None
         # get old document
-        old_user = await UsersAdapter.get_user_by_id(db, id)
+        old_user = await UsersAdapter.get_user_by_id(db, user_id)
         # update the user if found:
         if old_user:
             if user.id != old_user["id"]:
-                raise IllegalValueException("Cannot change id for user.") from None
+                msg = "Cannot change id for user."
+                raise IllegalValueError(msg) from None
             new_user = user.to_dict()
-            result = await UsersAdapter.update_user(db, id, new_user)
-            return result
-        raise UserNotFoundException(f"User with id {id} not found.") from None
+            return await UsersAdapter.update_user(db, user_id, new_user)
+        msg = f"User with id {user_id} not found."
+        raise UserNotFoundError(msg) from None
 
     @classmethod
-    async def delete_user(cls: Any, db: Any, id: str) -> Optional[str]:
-        """Get user function."""
+    async def delete_user(cls: Any, db: AsyncIOMotorDatabase, user_id: str) -> None:
+        """Delete user."""
         # get old document
-        user = await UsersAdapter.get_user_by_id(db, id)
+        user = await UsersAdapter.get_user_by_id(db, user_id)
         # delete the document if found:
         if user:
-            result = await UsersAdapter.delete_user(db, id)
-            return result
-        raise UserNotFoundException(f"User with id {id} not found") from None
+            await UsersAdapter.delete_user(db, user_id)
+        else:
+            msg = f"User with id {user_id} not found"
+            raise UserNotFoundError(msg) from None

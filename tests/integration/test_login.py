@@ -1,31 +1,27 @@
 """Integration test cases for the login route."""
 
 import os
-from typing import Any
+from http import HTTPStatus
 
-from aiohttp import hdrs
-from aiohttp.test_utils import TestClient as _TestClient
 import jwt
 import pytest
+from aiohttp import hdrs
+from aiohttp.test_utils import TestClient as _TestClient
 from pytest_mock import MockFixture
 
 from user_service.models import User
 
-
 ID = "290e70d5-0933-4af0-bb53-1d705ba7eb95"
 
 
-async def mock_test_user(db: Any, username: str) -> User:
+async def mock_test_user(db: str, username: str) -> User:
     """Create a mock user object."""
-    return User(  # noqa: S106
-        id=ID, username="test", password="test", role="user-admin"
-    )
+    _ = (db, username)
+    return User(id=ID, username="test", password="test", role="user-admin")  # noqa: S106
 
 
 @pytest.mark.integration
-async def test_login_admin_user_password(
-    client: _TestClient, mocker: MockFixture
-) -> None:
+async def test_login_admin_user_password(client: _TestClient) -> None:
     """Should return 200 OK and a valid token."""
     request_body = {
         "username": os.getenv("ADMIN_USERNAME"),
@@ -36,11 +32,11 @@ async def test_login_admin_user_password(
     }
 
     resp = await client.post("/login", headers=headers, json=request_body)
-    assert resp.status == 200
+    assert resp.status == HTTPStatus.OK
     body = await resp.json()
     assert type(body) is dict
     assert body["token"]
-    jwt.decode(body["token"], os.getenv("JWT_SECRET"), algorithms="HS256")  # type: ignore
+    jwt.decode(body["token"], os.getenv("JWT_SECRET"), algorithms=["HS256"])
 
 
 @pytest.mark.integration
@@ -62,11 +58,11 @@ async def test_login_valid_user_password(
     }
 
     resp = await client.post("/login", headers=headers, json=request_body)
-    assert resp.status == 200
+    assert resp.status == HTTPStatus.OK
     body = await resp.json()
     assert type(body) is dict
     assert body["token"]
-    jwt.decode(body["token"], os.getenv("JWT_SECRET"), algorithms="HS256")  # type: ignore
+    jwt.decode(body["token"], os.getenv("JWT_SECRET"), algorithms=["HS256"])
 
 
 # Bad cases
@@ -89,7 +85,7 @@ async def test_login_invalid_user(client: _TestClient, mocker: MockFixture) -> N
     }
 
     resp = await client.post("/login", headers=headers, json=request_body)
-    assert resp.status == 401
+    assert resp.status == HTTPStatus.UNAUTHORIZED
 
 
 @pytest.mark.integration
@@ -108,17 +104,15 @@ async def test_login_wrong_password(client: _TestClient, mocker: MockFixture) ->
     }
 
     resp = await client.post("/login", headers=headers, json=request_body)
-    assert resp.status == 401
+    assert resp.status == HTTPStatus.UNAUTHORIZED
 
 
 @pytest.mark.integration
-async def test_login_no_body_in_request(
-    client: _TestClient, mocker: MockFixture
-) -> None:
+async def test_login_no_body_in_request(client: _TestClient) -> None:
     """Should return 400 Bad Request."""
     headers = {
         hdrs.CONTENT_TYPE: "application/json",
     }
 
     resp = await client.post("/login", headers=headers)
-    assert resp.status == 400
+    assert resp.status == HTTPStatus.BAD_REQUEST
