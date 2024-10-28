@@ -17,4 +17,4 @@ async def test_create_access_token() -> None:
     assert token
     assert len(token) > 0
     secret = os.getenv("JWT_SECRET")
-    jwt.decode(token, secret, algorithms="HS256")  # type: ignore
+    jwt.decode(token, secret, algorithms=["HS256"])

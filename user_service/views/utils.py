@@ -1,13 +1,11 @@
 """Resource module for utils."""
 
-from typing import Optional
-
 from aiohttp.web import (
     Request,
 )
 
 
-async def extract_token_from_request(request: Request) -> Optional[str]:
+async def extract_token_from_request(request: Request) -> str | None:
     """Extract jwt_token from authorization header in request."""
     jwt_token = None
     authorization = request.headers.get("authorization", None)

@@ -18,10 +18,10 @@ class ReadyView(web.View):
         else:  # pragma: no cover
             db = self.request.app["db"]
             result = await db.command("ping")
-            logging.debug(f"result of db-ping: {result}")
+            logging.debug("result of db-ping: %s", result)
             if result["ok"] == 1:
                 return web.Response(text="OK")
-            raise web.HTTPInternalServerError() from None
+            raise web.HTTPInternalServerError from None
 
         return web.Response(text="OK")
 

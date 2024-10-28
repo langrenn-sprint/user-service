@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 from dataclasses_json import DataClassJsonMixin
 
@@ -21,5 +20,5 @@ class User(DataClassJsonMixin):
 
     username: str
     role: str
-    password: Optional[str] = field(default=None)
-    id: Optional[str] = field(default=None)
+    password: str | None = field(default=None)
+    id: str | None = field(default=None)

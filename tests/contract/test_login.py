@@ -1,10 +1,11 @@
 """Contract test cases for ping."""
 
 import os
+from http import HTTPStatus
 from typing import Any
 
-from aiohttp import ClientSession, hdrs
 import pytest
+from aiohttp import ClientSession, hdrs
 
 
 @pytest.mark.contract
@@ -22,14 +23,14 @@ async def test_login(http_service: Any) -> None:
         body = await response.json()
     await session.close()
 
-    assert response.status == 200
+    assert response.status == HTTPStatus.OK
     assert body["token"]
 
 
 @pytest.mark.contract
 @pytest.mark.asyncio
 async def test_login_wrong_password(http_service: Any) -> None:
-    """Should return 401."""
+    """Should return 401 Unauthorized."""
     url = f"{http_service}/login"
     headers = {hdrs.CONTENT_TYPE: "application/json"}
     request_body = {
@@ -41,6 +42,6 @@ async def test_login_wrong_password(http_service: Any) -> None:
         body = await response.json()
     await session.close()
 
-    assert response.status == 401
+    assert response.status == HTTPStatus.UNAUTHORIZED
     assert response.content_type == "application/json"
     assert body["detail"] == "Incorrect username or password"

@@ -4,7 +4,7 @@ Back-end service to administer users and login
 
 Example of usage:
 
-```Shell
+```Zsh
 % curl -H "Content-Type: application/json" \
   -X POST \
   --data '{"username":"admin","password":"passw123"}' \
@@ -33,7 +33,7 @@ To run the service locally, you need to supply a set of environment variables. A
 
 A minimal .env:
 
-```shell
+```Zsh
 JWT_SECRET=secret
 JWT_EXP_DELTA_SECONDS=3600
 ADMIN_USERNAME=admin
@@ -43,33 +43,47 @@ DB_PASSWORD=admin
 LOGGING_LEVEL=DEBUG
 ```
 
+## Requirement for development
+
+Install [uv](https://docs.astral.sh/uv/), e.g.:
+
+```Zsh
+% curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then install the dependencies:
+
+```Zsh
+% uv sync
+```
+
 ## Running the API locally
 
 Start the server locally:
 
-```Shell
-% poetry run adev runserver -p 8080 user_service
+```Zsh
+% uv run adev runserver -p 8080 user_service
 ```
 
 ## Running the API in a wsgi-server (gunicorn)
 
-```Shell
-% poetry run gunicorn user_service:create_app --bind localhost:8080 --worker-class aiohttp.GunicornWebWorker
+```Zsh
+% uv run gunicorn user_service:create_app --bind localhost:8080 --worker-class aiohttp.GunicornWebWorker
 ```
 
 ## Running the wsgi-server in Docker
 
 To build and run the api in a Docker container:
 
-```Shell
-% docker build -t digdir/user-service:latest .
-% docker run --env-file .env -p 8080:8080 -d digdir/user-service:latest
+```Zsh
+% docker build -t langrenn-sprint/user-service:latest .
+% docker run --env-file .env -p 8080:8080 -d langrenn-sprint/user-service:latest
 ```
 
 The easier way would be with docker-compose:
 
-```Shell
-docker-compose up --build
+```Zsh
+docker compose up --build
 ```
 
 ## Running tests
@@ -78,12 +92,12 @@ We use [pytest](https://docs.pytest.org/en/latest/) for contract testing.
 
 To run linters, checkers and tests:
 
-```Shel
-% nox
+```Zsh
+% uv run poe release
 ```
 
 To run tests with logging, do:
 
-```Shell
-% nox -s integration_tests -- --log-cli-level=DEBUG
+```Zsh
+% uv run pytest -m integration -- --log-cli-level=DEBUG
 ```

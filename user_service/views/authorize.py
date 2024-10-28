@@ -14,11 +14,11 @@ from aiohttp.web import (
 
 from user_service.services import (
     AuthorizationService,
-    IncompleteTokenException,
-    InconsistentTokenException,
-    InvalidInputException,
-    InvalidTokenException,
-    UserNotAuthorizedException,
+    IncompleteTokenError,
+    InconsistentTokenError,
+    InvalidInputError,
+    InvalidTokenError,
+    UserNotAuthorizedError,
 )
 
 
@@ -39,13 +39,13 @@ class AuthorizeView(View):
                 db, body.get("token", None), body.get("roles", None)
             )
         except (
-            InvalidTokenException,
-            InvalidInputException,
-            IncompleteTokenException,
+            InvalidTokenError,
+            InvalidInputError,
+            IncompleteTokenError,
         ) as e:
             logging.debug(traceback.format_exc())
             raise HTTPUnauthorized(reason=str(e)) from e
-        except (UserNotAuthorizedException, InconsistentTokenException) as e:
+        except (UserNotAuthorizedError, InconsistentTokenError) as e:
             raise HTTPForbidden(reason=str(e)) from e
 
         return Response(status=204)
