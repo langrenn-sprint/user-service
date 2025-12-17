@@ -11,6 +11,8 @@ CONFIG = os.getenv("CONFIG", "production")
 class ReadyView(web.View):
     """Class representing ready resource."""
 
+    logger = logging.getLogger("user_service.liveness_view.ReadyView")
+
     async def get(self) -> web.Response:
         """Ready route function."""
         if CONFIG in {"test", "dev"}:
@@ -18,7 +20,7 @@ class ReadyView(web.View):
         else:  # pragma: no cover
             db = self.request.app["db"]
             result = await db.command("ping")
-            logging.debug("result of db-ping: %s", result)
+            self.logger.debug("result of db-ping: %s", result)
             if result["ok"] == 1:
                 return web.Response(text="OK")
             raise web.HTTPInternalServerError from None

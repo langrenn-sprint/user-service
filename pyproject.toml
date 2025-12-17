@@ -18,8 +18,8 @@ dependencies = [
     "python-dotenv>=1.0.1",
 ]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "aiohttp-devtools>=1.1.2",
     "poethepoet>=0.29.0",
     "pyright>=1.1.386",
@@ -35,7 +35,7 @@ dev-dependencies = [
 ]
 
 [tool.poe.tasks]
-fmt = "uv run ruff format"
+format = "uv run ruff format"
 lint = "uv run ruff check --fix"
 pyright = "uv run pyright"
 unit-tests = "uv run pytest -m unit"

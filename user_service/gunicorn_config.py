@@ -11,7 +11,6 @@ from gunicorn import glogging
 load_dotenv()
 
 HOST_PORT = env.get("HOST_PORT", "8080")
-DEBUG_MODE = env.get("DEBUG_MODE", False)
 LOG_LEVEL = env.get("LOG_LEVEL", "info")
 
 # Gunicorn config

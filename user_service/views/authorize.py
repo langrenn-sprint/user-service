@@ -25,6 +25,8 @@ from user_service.services import (
 class AuthorizeView(View):
     """Class representing authorize resource."""
 
+    logger = logging.getLogger("user_service.authorize_view.AuthorizeView")
+
     async def post(self) -> Response:
         """Authorize route function."""
         db = self.request.app["db"]
@@ -43,7 +45,7 @@ class AuthorizeView(View):
             InvalidInputError,
             IncompleteTokenError,
         ) as e:
-            logging.debug(traceback.format_exc())
+            self.logger.debug(traceback.format_exc())
             raise HTTPUnauthorized(reason=str(e)) from e
         except (UserNotAuthorizedError, InconsistentTokenError) as e:
             raise HTTPForbidden(reason=str(e)) from e

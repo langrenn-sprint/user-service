@@ -18,6 +18,8 @@ DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
+logger = logging.getLogger("user_service.contract_tests.test_users")
+
 
 @pytest.fixture
 def token() -> str:
@@ -37,7 +39,7 @@ async def clear_db() -> AsyncGenerator:
     try:
         await mongo.drop_database(f"{DB_NAME}")
     except Exception:
-        logging.exception("Failed to drop database %s", DB_NAME)
+        logger.exception("Failed to drop database %s", DB_NAME)
         raise
 
     yield
@@ -45,7 +47,7 @@ async def clear_db() -> AsyncGenerator:
     try:
         await mongo.drop_database(f"{DB_NAME}")
     except Exception:
-        logging.exception("Failed to drop database %s", DB_NAME)
+        logger.exception("Failed to drop database %s", DB_NAME)
         raise
 
 

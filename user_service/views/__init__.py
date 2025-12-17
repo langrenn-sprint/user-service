@@ -7,9 +7,9 @@ from .users import UsersView, UserView
 
 __all__ = [
     "AuthorizeView",
+    "LoginView",
     "PingView",
     "ReadyView",
-    "LoginView",
-    "UsersView",
     "UserView",
+    "UsersView",
 ]

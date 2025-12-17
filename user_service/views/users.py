@@ -37,6 +37,8 @@ BASE_URL = f"http://{HOST_SERVER}:{HOST_PORT}"
 class UsersView(View):
     """Class representing users resource."""
 
+    logger = logging.getLogger("user_service.users_view.UsersView")
+
     async def get(self) -> Response:
         """Get route function."""
         db = self.request.app["db"]
@@ -73,12 +75,12 @@ class UsersView(View):
                 db, token, [Role.ADMIN, Role.USER_ADMIN]
             )
         except AuthorizationError as e:
-            logging.exception("Authorization error")
+            self.logger.exception("Authorization error")
             raise HTTPForbidden(reason=str(e)) from e
 
         # Process request:
         body = await self.request.json()
-        logging.debug("Got create request for user %s of type %s", body, type(body))
+        self.logger.debug("Got create request for user %s of type %s", body, type(body))
 
         try:
             user = User.from_dict(body)
@@ -92,7 +94,7 @@ class UsersView(View):
         except IllegalValueError as e:
             raise HTTPUnprocessableEntity from e
         if user_id:
-            logging.debug("inserted document with id %s", user_id)
+            self.logger.debug("inserted document with id %s", user_id)
             headers = MultiDict([(hdrs.LOCATION, f"{BASE_URL}/users/{user_id}")])
 
             return Response(status=HTTPStatus.CREATED, headers=headers)
@@ -101,6 +103,8 @@ class UsersView(View):
 
 class UserView(View):
     """Class representing a single user resource."""
+
+    logger = logging.getLogger("user_service.users_view.UserView")
 
     async def get(self) -> Response:
         """Get route function."""
@@ -116,13 +120,13 @@ class UserView(View):
 
         # Process request:
         user_id = self.request.match_info["id"]
-        logging.debug("Got get request for user %s", user_id)
+        self.logger.debug("Got get request for user %s", user_id)
         try:
             user = await UsersService.get_user_by_id(db, user_id)
         except IllegalValueError as e:
             raise HTTPNotFound from e
 
-        logging.debug("Got user: %s", user)
+        self.logger.debug("Got user: %s", user)
         # We remove the password attribute from the response:
         user_dict = user.to_dict()
         user_dict.pop("password", None)
@@ -153,7 +157,7 @@ class UserView(View):
             ) from e
 
         user_id = self.request.match_info["id"]
-        logging.debug("Got request-body %s for %s of type %s", body, id, type(body))
+        self.logger.debug("Got request-body %s for %s of type %s", body, id, type(body))
         try:
             await UsersService.update_user(db, user_id, user)
         except IllegalValueError as e:
@@ -176,7 +180,7 @@ class UserView(View):
 
         # Process request:
         user_id = self.request.match_info["id"]
-        logging.debug("Got delete request for user %s", user_id)
+        self.logger.debug("Got delete request for user %s", user_id)
 
         try:
             await UsersService.delete_user(db, user_id)

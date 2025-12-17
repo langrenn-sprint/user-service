@@ -4,6 +4,7 @@ import logging
 import uuid
 from typing import Any
 
+from aiohttp_middlewares.cors import logger
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from user_service.adapters import UsersAdapter
@@ -35,6 +36,8 @@ class UserNotFoundError(Exception):
 
 class UsersService:
     """Class representing a service for users."""
+
+    logger = logging.getLogger("user_service.users_service.UsersService")
 
     @classmethod
     async def get_all_users(cls: Any, db: AsyncIOMotorDatabase) -> list[User]:
@@ -74,7 +77,7 @@ class UsersService:
         # insert new user
         new_user = user.to_dict()
         result = await UsersAdapter.create_user(db, new_user)
-        logging.debug("inserted user with id: %s", user_id)
+        logger.debug("inserted user with id: %s", user_id)
         if result:
             return user_id
         return None

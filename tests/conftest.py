@@ -10,7 +10,6 @@ import pytest
 import requests
 from aiohttp.test_utils import TestClient as _TestClient
 from dotenv import load_dotenv
-from requests.exceptions import ConnectionError
 
 from user_service import create_app
 
@@ -33,7 +32,7 @@ def is_responsive(url: str) -> bool:
         if response.status_code == HTTPStatus.OK:
             time.sleep(2)  # sleep extra 2 sec
             return True
-    except ConnectionError:
+    except requests.exceptions.ConnectionError:
         pass
     return False
 

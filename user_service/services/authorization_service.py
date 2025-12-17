@@ -15,6 +15,8 @@ ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 JWT_SECRET: str | None = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 
+logger = logging.getLogger("user_service.authorization_service")
+
 
 class AuthorizationError(Exception):
     """Class representing custom exception for authorization."""
@@ -73,6 +75,10 @@ class IncompleteTokenError(AuthorizationError):
 class AuthorizationService:
     """Class representing a service for users."""
 
+    logger = logging.getLogger(
+        "user_service.authorization_service.AuthorizationService"
+    )
+
     @classmethod
     async def authorize(
         cls: Any, db: AsyncIOMotorDatabase, token: str | None, target_roles: list[str]
@@ -114,7 +120,7 @@ class AuthorizationService:
             pass
         else:
             # Check if user given by username exists in our records:
-            logging.debug("Trying to verify user with username: %s", username)
+            logger.debug("Trying to verify user with username: %s", username)
             _user = await UsersAdapter.get_user_by_username(db, username)
             user = User.from_dict(_user)
             # Verify that user has role given in token:
@@ -135,13 +141,13 @@ class AuthorizationService:
 
 async def decode_token(token: str | None) -> dict:
     """Decode token."""
-    logging.debug("Got jwt_token %s", token)
+    logger.debug("Got jwt_token %s", token)
     if not token:  # pragma: no cover
         msg = "Token is required input."
         raise InvalidInputError(msg)
     try:
         return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:
-        logging.debug("Got excpetion %s", e)
+        logger.debug("Got excpetion %s", e)
         msg = f"Token is invalid: {type(e)}"
         raise InvalidTokenError(msg) from e

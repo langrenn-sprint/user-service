@@ -11,6 +11,8 @@ from .adapter import Adapter
 class UsersAdapter(Adapter):
     """Class representing an adapter for users."""
 
+    logger = logging.getLogger("user_service.users_adapter.UsersAdapter")
+
     @classmethod
     async def get_all_users(cls: Any, db: AsyncIOMotorDatabase) -> list:
         """Get all users function."""
@@ -18,7 +20,7 @@ class UsersAdapter(Adapter):
         cursor = db.users_collection.find()
         for user in await cursor.to_list(length=100):
             users.append(user)
-            logging.debug(user)
+            cls.logger.debug(user)
         return users
 
     @classmethod

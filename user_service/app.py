@@ -37,7 +37,8 @@ async def create_app() -> web.Application:
         ]
     )
     # Set up logging
-    logging.basicConfig(level=LOGGING_LEVEL)
+    logger = logging.getLogger("user_service.app")
+    logger.setLevel(LOGGING_LEVEL)
     logging.getLogger("chardet.charsetprober").setLevel(LOGGING_LEVEL)
 
     # Set up routes:
@@ -52,9 +53,9 @@ async def create_app() -> web.Application:
         ]
     )
 
-    async def mongo_context(app: Application) -> AsyncGenerator[None, None]:
+    async def mongo_context(app: Application) -> AsyncGenerator[None]:
         # Set up database connection:
-        logging.debug("Connecting to db at %s:%s", DB_HOST, DB_PORT)
+        logger.debug("Connecting to db at %s:%s", DB_HOST, DB_PORT)
         client: AsyncIOMotorClient[dict[str, Any]] = AsyncIOMotorClient(
             host=DB_HOST, port=DB_PORT, username=DB_USER, password=DB_PASSWORD
         )
