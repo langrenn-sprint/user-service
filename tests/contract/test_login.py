@@ -5,7 +5,7 @@ from http import HTTPStatus
 from typing import Any
 
 import pytest
-from aiohttp import ClientSession, hdrs
+from httpx import AsyncClient
 
 
 @pytest.mark.contract
@@ -13,17 +13,18 @@ from aiohttp import ClientSession, hdrs
 async def test_login(http_service: Any) -> None:
     """Should return 200 OK and a valid token."""
     url = f"{http_service}/login"
-    headers = {hdrs.CONTENT_TYPE: "application/json"}
+    headers = {"Content-Type": "application/json"}
     request_body = {
         "username": os.getenv("ADMIN_USERNAME"),
         "password": os.getenv("ADMIN_PASSWORD"),
     }
-    session = ClientSession()
-    async with session.post(url, headers=headers, json=request_body) as response:
-        body = await response.json()
-    await session.close()
 
-    assert response.status == HTTPStatus.OK
+    async with AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=request_body)
+        body = response.json()
+
+    assert response.status_code == HTTPStatus.OK
+    assert "application/json" in response.headers["Content-Type"]
     assert body["token"]
 
 
@@ -32,16 +33,15 @@ async def test_login(http_service: Any) -> None:
 async def test_login_wrong_password(http_service: Any) -> None:
     """Should return 401 Unauthorized."""
     url = f"{http_service}/login"
-    headers = {hdrs.CONTENT_TYPE: "application/json"}
+    headers = {"Content-Type": "application/json"}
     request_body = {
         "username": os.getenv("ADMIN_USERNAME"),
         "password": "WRONG_PASSWORD",
     }
-    session = ClientSession()
-    async with session.post(url, headers=headers, json=request_body) as response:
-        body = await response.json()
-    await session.close()
+    async with AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=request_body)
+        body = response.json()
 
-    assert response.status == HTTPStatus.UNAUTHORIZED
-    assert response.content_type == "application/json"
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert "application/json" in response.headers["Content-Type"]
     assert body["detail"] == "Incorrect username or password"

@@ -4,7 +4,7 @@ from http import HTTPStatus
 from typing import Any
 
 import pytest
-from aiohttp import ClientSession
+from httpx import AsyncClient
 
 
 @pytest.mark.contract
@@ -13,10 +13,9 @@ async def test_ready(http_service: Any) -> None:
     """Should return OK."""
     url = f"{http_service}/ready"
 
-    session = ClientSession()
-    async with session.get(url) as response:
-        text = await response.text()
-    await session.close()
+    async with AsyncClient() as client:
+        response = await client.get(url)
+        text = response.text
 
-    assert response.status == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.OK
     assert text == "OK"

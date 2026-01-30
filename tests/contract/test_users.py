@@ -9,7 +9,7 @@ from typing import Any
 import jwt
 import motor.motor_asyncio
 import pytest
-from aiohttp import ClientSession, hdrs
+from httpx import AsyncClient
 from pytest_mock import MockFixture
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
@@ -57,21 +57,20 @@ async def test_create_user(http_service: Any, token: MockFixture) -> None:
     """Should return 201 Created, location header and no body."""
     url = f"{http_service}/users"
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
     request_body = {
         "username": "user@example.com",
         "password": "secret",
         "role": "admin",
     }
-    session = ClientSession()
-    async with session.post(url, headers=headers, json=request_body) as response:
-        status = response.status
-    await session.close()
 
-    assert status == HTTPStatus.CREATED
-    assert "/users/" in response.headers[hdrs.LOCATION]
+    async with AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=request_body)
+
+    assert response.status_code == HTTPStatus.CREATED
+    assert "/users/" in response.headers["Location"]
 
 
 @pytest.mark.contract
@@ -80,16 +79,15 @@ async def test_get_users(http_service: Any, token: MockFixture) -> None:
     """Should return 200 OK and a list of users as json."""
     url = f"{http_service}/users"
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token}",
     }
 
-    session = ClientSession()
-    async with session.get(url, headers=headers) as response:
-        users = await response.json()
-    await session.close()
+    async with AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        users = response.json()
 
-    assert response.status == HTTPStatus.OK
-    assert "application/json" in response.headers[hdrs.CONTENT_TYPE]
+    assert response.status_code == HTTPStatus.OK
+    assert "application/json" in response.headers["Content-Type"]
     assert type(users) is list
     assert len(users) == 1
     for user in users:
@@ -103,19 +101,21 @@ async def test_get_user(http_service: Any, token: MockFixture) -> None:
     url = f"{http_service}/users"
 
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token}",
     }
 
-    async with ClientSession() as session:
-        async with session.get(url, headers=headers) as response:
-            users = await response.json()
+    async with AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        assert response.status_code == HTTPStatus.OK, response.text
+        users = response.json()
+        assert len(users) > 0
         _id = users[0]["id"]
         url = f"{url}/{_id}"
-        async with session.get(url, headers=headers) as response:
-            user = await response.json()
+        response = await client.get(url, headers=headers)
+        user = response.json()
 
-    assert response.status == HTTPStatus.OK
-    assert "application/json" in response.headers[hdrs.CONTENT_TYPE]
+    assert response.status_code == HTTPStatus.OK
+    assert "application/json" in response.headers["Content-Type"]
     assert type(user) is dict
     assert user["id"]
     assert user["username"]
@@ -128,13 +128,15 @@ async def test_update_user(http_service: Any, token: MockFixture) -> None:
     """Should return 204 No Content."""
     url = f"{http_service}/users"
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
-    async with ClientSession() as session:
-        async with session.get(url, headers=headers) as response:
-            users = await response.json()
+    async with AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        assert response.status_code == HTTPStatus.OK, response.text
+        users = response.json()
+        assert len(users) > 0
         _id = users[0]["id"]
         url = f"{url}/{_id}"
         request_body = {
@@ -142,10 +144,9 @@ async def test_update_user(http_service: Any, token: MockFixture) -> None:
             "username": "user@example.com updated",
             "role": "admin",
         }
-        async with session.put(url, headers=headers, json=request_body) as response:
-            pass
+        response = await client.put(url, headers=headers, json=request_body)
 
-    assert response.status == HTTPStatus.NO_CONTENT
+    assert response.status_code == HTTPStatus.NO_CONTENT
 
 
 @pytest.mark.contract
@@ -154,15 +155,15 @@ async def test_delete_user(http_service: Any, token: MockFixture) -> None:
     """Should return 204 No Content."""
     url = f"{http_service}/users"
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token}",
     }
 
-    async with ClientSession() as session:
-        async with session.get(url, headers=headers) as response:
-            users = await response.json()
+    async with AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        assert response.status_code == HTTPStatus.OK, response.text
+        users = response.json()
+        assert len(users) > 0
         _id = users[0]["id"]
         url = f"{url}/{_id}"
-        async with session.delete(url, headers=headers) as response:
-            pass
-
-    assert response.status == HTTPStatus.NO_CONTENT
+        response = await client.delete(url, headers=headers)
+    assert response.status_code == HTTPStatus.NO_CONTENT

@@ -6,7 +6,7 @@ from typing import Any
 
 import jwt
 import pytest
-from aiohttp import ClientSession, hdrs
+from httpx import AsyncClient
 from pytest_mock import MockFixture
 
 
@@ -27,14 +27,12 @@ async def test_authorize(http_service: Any, token: MockFixture) -> None:
     request_body = {"token": token, "roles": ["admin"]}
 
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
+        "Content-Type": "application/json",
     }
-    session = ClientSession()
-    async with session.post(url, headers=headers, json=request_body) as response:
-        pass
-    await session.close()
+    async with AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=request_body)
 
-    assert response.status == HTTPStatus.NO_CONTENT
+    assert response.status_code == HTTPStatus.NO_CONTENT
 
 
 @pytest.mark.contract
@@ -45,15 +43,14 @@ async def test_authorize_token_value_none(http_service: Any) -> None:
     request_body = {"token": None, "roles": ["admin"]}
 
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
+        "Content-Type": "application/json",
     }
-    session = ClientSession()
-    async with session.post(url, headers=headers, json=request_body) as response:
-        body = await response.json()
-    await session.close()
+    async with AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=request_body)
+        body = response.json()
 
-    assert response.status == HTTPStatus.UNAUTHORIZED
-    assert response.content_type == "application/json"
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert "application/json" in response.headers["Content-Type"]
     assert body.get("detail") == "Token is required input."
 
 
@@ -65,15 +62,14 @@ async def test_authorize_no_token(http_service: Any) -> None:
     request_body = {"roles": ["admin"]}
 
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
+        "Content-Type": "application/json",
     }
-    session = ClientSession()
-    async with session.post(url, headers=headers, json=request_body) as response:
-        body = await response.json()
-    await session.close()
+    async with AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=request_body)
+        body = response.json()
 
-    assert response.status == HTTPStatus.UNAUTHORIZED
-    assert response.content_type == "application/json"
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert "application/json" in response.headers["Content-Type"]
     assert body.get("detail") == "Token is required input."
 
 
@@ -85,13 +81,13 @@ async def test_authorize_wrong_role(http_service: Any, token: MockFixture) -> No
     request_body = {"token": token, "roles": ["WRONG_ROLE"]}
 
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
+        "Content-Type": "application/json",
     }
-    session = ClientSession()
-    async with session.post(url, headers=headers, json=request_body) as response:
-        body = await response.json()
-    await session.close()
 
-    assert response.status == HTTPStatus.FORBIDDEN
-    assert response.content_type == "application/json"
+    async with AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=request_body)
+        body = response.json()
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert "application/json" in response.headers["Content-Type"]
     assert body.get("detail") == "User admin does not have sufficient role."
