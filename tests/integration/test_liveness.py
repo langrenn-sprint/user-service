@@ -3,22 +3,30 @@
 from http import HTTPStatus
 
 import pytest
-from aiohttp.test_utils import TestClient as _TestClient
+from fastapi.testclient import TestClient
+
+from app import api
+
+
+@pytest.fixture
+def client() -> TestClient:
+    """Fixture to create a test client for the FastAPI application."""
+    return TestClient(api)
 
 
 @pytest.mark.integration
-async def test_ping(client: _TestClient) -> None:
+async def test_ping(client: TestClient) -> None:
     """Should return OK."""
-    resp = await client.get("/ping")
-    assert resp.status == HTTPStatus.OK
-    text = await resp.text()
+    resp = client.get("/ping")
+    assert resp.status_code == HTTPStatus.OK
+    text = resp.text
     assert "OK" in text
 
 
 @pytest.mark.integration
-async def test_ready(client: _TestClient) -> None:
+async def test_ready(client: TestClient) -> None:
     """Should return OK."""
-    resp = await client.get("/ready")
-    assert resp.status == HTTPStatus.OK
-    text = await resp.text()
+    resp = client.get("/ready")
+    assert resp.status_code == HTTPStatus.OK
+    text = resp.text
     assert "OK" in text

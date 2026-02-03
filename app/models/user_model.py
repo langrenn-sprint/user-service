@@ -1,9 +1,9 @@
 """User data class module."""
 
-from dataclasses import dataclass, field
 from enum import Enum
+from uuid import UUID, uuid4
 
-from dataclasses_json import DataClassJsonMixin
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 
 class Role(str, Enum):
@@ -14,11 +14,14 @@ class Role(str, Enum):
     EVENT_ADMIN = "event-admin"
 
 
-@dataclass
-class User(DataClassJsonMixin):
+class User(BaseModel):
     """Data class with details about a user."""
 
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+    id: UUID = Field(default_factory=uuid4)
     username: str
-    role: str
-    password: str | None = field(default=None)
-    id: str | None = field(default=None)
+    role: Role
+    password: SecretStr

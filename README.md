@@ -8,14 +8,14 @@ Example of usage:
 % curl -H "Content-Type: application/json" \
   -X POST \
   --data '{"username":"admin","password":"passw123"}' \
-  http://localhost:8080/login
+  http://localhost:8000/login
 % export ACCESS="" #token from response
 % curl -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ACCESS" \
   -X POST \
   --data @tests/files/user.json \
-  http://localhost:8080/users
-% curl -H "Authorization: Bearer $ACCESS"  http://localhost:8080/users
+  http://localhost:8000/users
+% curl -H "Authorization: Bearer $ACCESS"  http://localhost:8000/users
 ```
 
 ## Architecture
@@ -62,13 +62,13 @@ Then install the dependencies:
 Start the server locally:
 
 ```Zsh
-% uv run adev runserver -p 8080 user_service
+% uv run --env-file .env fastapi dev
 ```
 
 ## Running the API in a wsgi-server (gunicorn)
 
 ```Zsh
-% uv run gunicorn user_service:create_app --bind localhost:8080 --worker-class aiohttp.GunicornWebWorker
+% uv run --env-file .env uvicorn app:api --host 0.0.0.0 --port 8000 --workers 1 --log-config=logging.yaml
 ```
 
 ## Running the wsgi-server in Docker
@@ -76,8 +76,8 @@ Start the server locally:
 To build and run the api in a Docker container:
 
 ```Zsh
-% docker build -t langrenn-sprint/user-service:latest .
-% docker run --env-file .env -p 8080:8080 -d langrenn-sprint/user-service:latest
+% docker build -t ghcr.io/langrenn-sprint/user-service:latest .
+% docker run --env-file .env -p 8000:8000 -d ghcr.io/langrenn-sprint/user-service:latest
 ```
 
 The easier way would be with docker-compose:

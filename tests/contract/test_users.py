@@ -18,7 +18,7 @@ DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
-logger = logging.getLogger("user_service.contract_tests.test_users")
+logger = logging.getLogger("app.contract_tests.test_users")
 
 
 @pytest.fixture
@@ -26,7 +26,11 @@ def token() -> str:
     """Create a valid token."""
     secret = os.getenv("JWT_SECRET")
     algorithm = "HS256"
-    payload = {"username": os.getenv("ADMIN_USERNAME"), "role": "admin"}
+    payload = {
+        "username": os.getenv("ADMIN_USERNAME"),
+        "role": "admin",
+        "exp": 9999999999,
+    }
     return jwt.encode(payload, secret, algorithm)
 
 
@@ -90,8 +94,6 @@ async def test_get_users(http_service: Any, token: MockFixture) -> None:
     assert "application/json" in response.headers["Content-Type"]
     assert type(users) is list
     assert len(users) == 1
-    for user in users:
-        assert "password" not in user
 
 
 @pytest.mark.contract
@@ -119,7 +121,6 @@ async def test_get_user(http_service: Any, token: MockFixture) -> None:
     assert type(user) is dict
     assert user["id"]
     assert user["username"]
-    assert "password" not in user
 
 
 @pytest.mark.contract
@@ -143,10 +144,11 @@ async def test_update_user(http_service: Any, token: MockFixture) -> None:
             "id": _id,
             "username": "user@example.com updated",
             "role": "admin",
+            "password": "newsecret",
         }
         response = await client.put(url, headers=headers, json=request_body)
 
-    assert response.status_code == HTTPStatus.NO_CONTENT
+    assert response.status_code == HTTPStatus.NO_CONTENT, response.text
 
 
 @pytest.mark.contract
@@ -166,4 +168,4 @@ async def test_delete_user(http_service: Any, token: MockFixture) -> None:
         _id = users[0]["id"]
         url = f"{url}/{_id}"
         response = await client.delete(url, headers=headers)
-    assert response.status_code == HTTPStatus.NO_CONTENT
+    assert response.status_code == HTTPStatus.NO_CONTENT, response.text

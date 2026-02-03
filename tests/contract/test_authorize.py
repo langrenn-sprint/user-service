@@ -24,7 +24,7 @@ def token() -> str:
 async def test_authorize(http_service: Any, token: MockFixture) -> None:
     """Should return 200 OK and a valid token."""
     url = f"{http_service}/authorize"
-    request_body = {"token": token, "roles": ["admin"]}
+    request_body = {"token": token, "target_roles": ["admin"]}
 
     headers = {
         "Content-Type": "application/json",
@@ -38,39 +38,33 @@ async def test_authorize(http_service: Any, token: MockFixture) -> None:
 @pytest.mark.contract
 @pytest.mark.asyncio
 async def test_authorize_token_value_none(http_service: Any) -> None:
-    """Should return 401 Unauthorized."""
+    """Should return 422 Unprocessable entity."""
     url = f"{http_service}/authorize"
-    request_body = {"token": None, "roles": ["admin"]}
+    request_body = {"token": None, "target_roles": ["admin"]}
 
     headers = {
         "Content-Type": "application/json",
     }
     async with AsyncClient() as client:
         response = await client.post(url, headers=headers, json=request_body)
-        body = response.json()
 
-    assert response.status_code == HTTPStatus.UNAUTHORIZED
-    assert "application/json" in response.headers["Content-Type"]
-    assert body.get("detail") == "Token is required input."
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 @pytest.mark.contract
 @pytest.mark.asyncio
 async def test_authorize_no_token(http_service: Any) -> None:
-    """Should return 401 Unauthorized."""
+    """Should return 422 Unprocessable Entity."""
     url = f"{http_service}/authorize"
-    request_body = {"roles": ["admin"]}
+    request_body = {"target_roles": ["admin"]}
 
     headers = {
         "Content-Type": "application/json",
     }
     async with AsyncClient() as client:
         response = await client.post(url, headers=headers, json=request_body)
-        body = response.json()
 
-    assert response.status_code == HTTPStatus.UNAUTHORIZED
-    assert "application/json" in response.headers["Content-Type"]
-    assert body.get("detail") == "Token is required input."
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 @pytest.mark.contract
@@ -78,7 +72,7 @@ async def test_authorize_no_token(http_service: Any) -> None:
 async def test_authorize_wrong_role(http_service: Any, token: MockFixture) -> None:
     """Should return 403 Forbidden."""
     url = f"{http_service}/authorize"
-    request_body = {"token": token, "roles": ["WRONG_ROLE"]}
+    request_body = {"token": token, "target_roles": ["WRONG_ROLE"]}
 
     headers = {
         "Content-Type": "application/json",

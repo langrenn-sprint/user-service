@@ -2,17 +2,24 @@
 
 import os
 from http import HTTPStatus
-from typing import Any
+from uuid import UUID, uuid4
 
 import jwt
 import pytest
-from aiohttp import hdrs
-from aiohttp.test_utils import TestClient as _TestClient
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from pytest_mock import MockFixture
 
-from user_service.services import AuthorizationError
+from app import api
+from app.models import Role, User
 
-USER_ID = "290e70d5-0933-4af0-bb53-1d705ba7eb95"
+USER_ID = UUID("2330b904efcc4ac08c01375b19c12a44")
+
+
+@pytest.fixture
+def client() -> TestClient:
+    """Fixture to create a test client for the FastAPI application."""
+    return TestClient(api)
 
 
 @pytest.fixture
@@ -20,7 +27,11 @@ def token() -> str:
     """Create a valid token."""
     secret = os.getenv("JWT_SECRET")
     algorithm = "HS256"
-    payload = {"username": os.getenv("ADMIN_USERNAME"), "role": "admin"}
+    payload = {
+        "username": os.getenv("ADMIN_USERNAME"),
+        "role": "admin",
+        "exp": 9999999999,
+    }
     return jwt.encode(payload, secret, algorithm)
 
 
@@ -29,214 +40,176 @@ def token_nonprivileged_user() -> str:
     """Create a valid token."""
     secret = os.getenv("JWT_SECRET")
     algorithm = "HS256"
-    payload = {"username": "nonprivileged", "role": "nonprivileged"}
+    payload = {"username": "nonprivileged", "role": "event-admin", "exp": 9999999999}
     return jwt.encode(payload, secret, algorithm)
 
 
-async def mock_user(db: str, username: str) -> dict:
+@pytest.fixture
+async def mock_user() -> User:
     """Create a mock user object."""
-    _ = (db, username)
-    return {
-        "id": USER_ID,
-        "username": "admin",
-        "password": "password",
-        "role": "admin",
-    }
+    return User(
+        id=USER_ID,
+        username="admin",
+        password=SecretStr("password"),
+        role=Role.ADMIN,
+    )
 
 
-async def mock_user_insufficent_role(db: str, username: str) -> dict:
+@pytest.fixture
+async def mock_user_insufficent_role() -> User:
     """Create a mock user object."""
-    _ = (db, username)
-    return {
-        "id": USER_ID,
-        "username": "nonprivileged",
-        "password": "password",
-        "role": "event-admin",
-    }
-
-
-async def mock_user_object(db: str, username: str) -> dict:
-    """Create a mock user object."""
-    _ = (db, username)
-    return {
-        "id": USER_ID,
-        "username": "some.user@example.com",
-        "password": "secret",
-        "role": "test",
-    }
-
-
-async def mock_authorize(db: str, token: Any, roles: Any) -> None:
-    """Pass autorization."""
+    return User(
+        id=USER_ID,
+        username="nonprivileged",
+        password=SecretStr("password"),
+        role=Role.EVENT_ADMIN,
+    )
 
 
 @pytest.mark.integration
 async def test_create_user(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture, mock_user: User
 ) -> None:
     """Should return Created, location header."""
     mocker.patch(
-        "user_service.services.users_service.create_id",
-        return_value=USER_ID,
+        "app.adapters.users_adapter.UsersAdapter.create_user",
+        return_value=mock_user.id,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.create_user",
-        return_value=USER_ID,
-    )
-    mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     request_body = {
+        "id": mock_user.id.hex,
         "username": "user@example.com",
         "password": "secret",
-        "role": "test",
+        "role": "admin",
     }
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
-    resp = await client.post("/users", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.CREATED
-    assert f"/users/{USER_ID}" in resp.headers[hdrs.LOCATION]
+    resp = client.post("/users", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.CREATED, resp.text
+    assert f"/users/{mock_user.id}" in resp.headers["Location"]
 
 
 @pytest.mark.integration
 async def test_get_user_by_id(
-    client: _TestClient,
+    client: TestClient,
     mocker: MockFixture,
     token: MockFixture,
+    mock_user: User,
 ) -> None:
     """Should return OK, and a body containing one user."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        side_effect=mock_user_object,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        return_value=mock_user,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token}",
     }
 
-    resp = await client.get(f"/users/{USER_ID}", headers=headers)
-    assert resp.status == HTTPStatus.OK
-    assert "application/json" in resp.headers[hdrs.CONTENT_TYPE]
-    user = await resp.json()
+    resp = client.get(f"/users/{mock_user.id}", headers=headers)
+    assert resp.status_code == HTTPStatus.OK
+    assert "application/json" in resp.headers["Content-Type"]
+    user = resp.json()
     assert type(user) is dict
-    assert user["id"] == USER_ID
+    assert user["id"] == str(mock_user.id)
+    assert user["username"] == mock_user.username
 
 
 @pytest.mark.integration
 async def test_update_user_by_id(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture, mock_user: User
 ) -> None:
     """Should return No Content."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        side_effect=mock_user_object,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        return_value=mock_user,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.update_user",
+        "app.adapters.users_adapter.UsersAdapter.update_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
     request_body = {
-        "id": USER_ID,
+        "id": str(mock_user.id),
         "username": "updated.user@example.com",
         "password": "secret",
-        "role": "test",
+        "role": "admin",
     }
 
-    resp = await client.put(f"/users/{USER_ID}", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.NO_CONTENT
+    resp = client.put(f"/users/{USER_ID}", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.NO_CONTENT, resp.text
 
 
 @pytest.mark.integration
 async def test_list_users(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture, mock_user: User
 ) -> None:
     """Should return OK and a valid json body."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_all_users",
-        return_value=[
-            {"id": USER_ID, "username": "Oslo Skagen Sprint", "role": "test"}
-        ],
+        "app.adapters.users_adapter.UsersAdapter.get_all_users",
+        return_value=[mock_user],
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token}",
     }
 
-    resp = await client.get("/users", headers=headers)
-    assert resp.status == HTTPStatus.OK
-    assert "application/json" in resp.headers[hdrs.CONTENT_TYPE]
-    users = await resp.json()
+    resp = client.get("/users", headers=headers)
+    assert resp.status_code == HTTPStatus.OK
+    assert "application/json" in resp.headers["Content-Type"]
+    users = resp.json()
     assert type(users) is list
     assert len(users) > 0
 
 
 @pytest.mark.integration
 async def test_delete_user_by_id(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture, mock_user: User
 ) -> None:
     """Should return No Content."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        side_effect=mock_user_object,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        return_value=mock_user,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.delete_user",
+        "app.adapters.users_adapter.UsersAdapter.delete_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token}",
     }
 
-    resp = await client.delete(f"/users/{USER_ID}", headers=headers)
-    assert resp.status == HTTPStatus.NO_CONTENT
+    resp = client.delete(f"/users/{USER_ID}", headers=headers)
+    assert resp.status_code == HTTPStatus.NO_CONTENT
 
 
 # Bad cases
@@ -244,24 +217,16 @@ async def test_delete_user_by_id(
 
 @pytest.mark.integration
 async def test_create_user_invalid_input(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture, mock_user: User
 ) -> None:
     """Should return 422 Unprocessable Entity."""
     mocker.patch(
-        "user_service.services.users_service.create_id",
+        "app.adapters.users_adapter.UsersAdapter.create_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.create_user",
-        return_value=USER_ID,
-    )
-    mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     request_body_lacks_role = {
@@ -269,236 +234,201 @@ async def test_create_user_invalid_input(
         "password": "secret",
     }
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
-    resp = await client.post("/users", headers=headers, json=request_body_lacks_role)
-    assert resp.status == HTTPStatus.UNPROCESSABLE_ENTITY
+    resp = client.post("/users", headers=headers, json=request_body_lacks_role)
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 @pytest.mark.integration
 async def test_create_user_with_id(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture
 ) -> None:
-    """Should return 422 Unprocessable Entity."""
+    """Should return 201 Created."""
     mocker.patch(
-        "user_service.services.users_service.create_id",
+        "app.adapters.users_adapter.UsersAdapter.create_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.create_user",
-        return_value=USER_ID,
-    )
-    mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     request_body_with_id = {
-        "id": USER_ID,
+        "id": str(USER_ID),
         "username": "user@example.com",
         "password": "secret",
-        "role": "test_role",
+        "role": "admin",
     }
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
-    resp = await client.post("/users", headers=headers, json=request_body_with_id)
-    assert resp.status == HTTPStatus.UNPROCESSABLE_ENTITY
+    resp = client.post("/users", headers=headers, json=request_body_with_id)
+    assert resp.status_code == HTTPStatus.CREATED, resp.text
+    assert f"/users/{request_body_with_id['id']}" in resp.headers["Location"]
 
 
 @pytest.mark.integration
 async def test_create_user_with_username_admin(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture
 ) -> None:
     """Should return 422 Unprocessable Entity."""
     mocker.patch(
-        "user_service.services.users_service.create_id",
+        "app.adapters.users_adapter.UsersAdapter.create_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.create_user",
-        return_value=USER_ID,
-    )
-    mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     request_body = {
         "username": "admin",
         "password": "secret",
-        "role": "test_role",
+        "role": "admin",
     }
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
-    resp = await client.post("/users", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.UNPROCESSABLE_ENTITY
+    resp = client.post("/users", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.BAD_REQUEST
 
 
 @pytest.mark.integration
 async def test_create_user_returns_none(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture
 ) -> None:
     """Should return 400 Bad Request."""
     mocker.patch(
-        "user_service.services.users_service.create_id",
-        return_value=USER_ID,
-    )
-    mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.create_user",
+        "app.adapters.users_adapter.UsersAdapter.create_user",
         return_value=None,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     request_body_lacks_role = {
         "username": "user@example.com",
-        "role": "test_role",
+        "role": "admin",
         "password": "secret",
     }
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
-    resp = await client.post("/users", headers=headers, json=request_body_lacks_role)
-    assert resp.status == HTTPStatus.BAD_REQUEST
+    resp = client.post("/users", headers=headers, json=request_body_lacks_role)
+    assert resp.status_code == HTTPStatus.BAD_REQUEST, resp.text
 
 
 @pytest.mark.integration
 async def test_update_user_invalid_input(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture, mock_user: User
 ) -> None:
     """Should return 422 Unprocessable Entity."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        side_effect=mock_user_object,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        return_value=mock_user,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.update_user",
+        "app.adapters.users_adapter.UsersAdapter.update_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
     request_body_lacks_role = {
-        "id": USER_ID,
+        "id": str(USER_ID),
         "username": "updated.user@example.com",
         "password": "secret",
     }
 
-    resp = await client.put(
+    resp = client.put(
         f"/users/{USER_ID}", headers=headers, json=request_body_lacks_role
     )
-    assert resp.status == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 @pytest.mark.integration
 async def test_update_user_set_username_to_admin(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture, mock_user: User
 ) -> None:
     """Should return 422 Unprocessable Entity."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        side_effect=mock_user_object,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        return_value=mock_user,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.update_user",
+        "app.adapters.users_adapter.UsersAdapter.update_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
     request_body = {
-        "id": USER_ID,
+        "id": str(USER_ID),
         "username": "admin",
         "password": "secret",
-        "role": "test_role",
+        "role": "admin",
     }
 
-    resp = await client.put(f"/users/{USER_ID}", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.UNPROCESSABLE_ENTITY
+    resp = client.put(f"/users/{USER_ID}", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 @pytest.mark.integration
 async def test_update_user_change_id(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture, mock_user: User
 ) -> None:
     """Should return 422 Unprocessable Entity."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        side_effect=mock_user_object,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        return_value=mock_user,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.update_user",
+        "app.adapters.users_adapter.UsersAdapter.update_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=mock_authorize,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
     request_body = {
-        "id": "DifferentId",
+        "id": str(uuid4()),
         "username": "some.user@example.com",
         "password": "secret",
-        "role": "test_role",
+        "role": "admin",
     }
 
-    resp = await client.put(f"/users/{USER_ID}", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.UNPROCESSABLE_ENTITY
+    resp = client.put(f"/users/{USER_ID}", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 # NOT FOUND CASES:
@@ -506,246 +436,232 @@ async def test_update_user_change_id(
 
 @pytest.mark.integration
 async def test_get_user_not_found(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture, mock_user: User
 ) -> None:
     """Should return 404 Not found."""
-    user_id = "does-not-exist"
+    user_id = str(uuid4())
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
         return_value=None,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token}",
     }
 
-    resp = await client.get(f"/users/{user_id}", headers=headers)
-    assert resp.status == HTTPStatus.NOT_FOUND
+    resp = client.get(f"/users/{user_id}", headers=headers)
+    assert resp.status_code == HTTPStatus.NOT_FOUND, resp.text
 
 
 @pytest.mark.integration
 async def test_update_user_not_found(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture
 ) -> None:
     """Should return 404 Not found."""
-    user_id = "does-not-exist"
+    user_id = str(uuid4())
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
         return_value=None,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.update_user",
+        "app.adapters.users_adapter.UsersAdapter.update_user",
         return_value=None,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
     }
 
     request_body = {
-        "id": user_id,
+        "id": str(USER_ID),
         "username": "updated.user@example.com",
         "password": "secret",
-        "role": "test",
+        "role": "admin",
     }
 
-    user_id = "does-not-exist"
-    resp = await client.put(f"/users/{user_id}", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.NOT_FOUND
+    resp = client.put(f"/users/{user_id}", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.NOT_FOUND, resp.text
 
 
 @pytest.mark.integration
 async def test_delete_user_not_found(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient, mocker: MockFixture, token: MockFixture
 ) -> None:
     """Should return 404 Not found."""
-    user_id = "does-not-exist"
+    user_id = str(uuid4())
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
         return_value=None,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.delete_user",
+        "app.adapters.users_adapter.UsersAdapter.delete_user",
         return_value=None,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user,
     )
 
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token}",
     }
 
-    resp = await client.delete(f"/users/{user_id}", headers=headers)
-    assert resp.status == HTTPStatus.NOT_FOUND
+    resp = client.delete(f"/users/{user_id}", headers=headers)
+    assert resp.status_code == HTTPStatus.NOT_FOUND
 
     # UNAUTHORIZED CASES:
 
 
 @pytest.mark.integration
 async def test_create_user_unauthorized(
-    client: _TestClient, mocker: MockFixture
+    client: TestClient,
+    mocker: MockFixture,
+    token_nonprivileged_user: str,
+    mock_user_insufficent_role: User,
 ) -> None:
     """Should return 403 Forbidden."""
     mocker.patch(
-        "user_service.services.users_service.create_id",
+        "app.adapters.users_adapter.UsersAdapter.create_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.create_user",
-        return_value=USER_ID,
-    )
-    mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=AuthorizationError("Unauthorized"),
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user_insufficent_role,
     )
 
     request_body = {
         "username": "user@example.com",
         "password": "secret",
-        "role": "test",
+        "role": "admin",
     }
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: "Bearer BAD_TOKEN",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token_nonprivileged_user}",
     }
 
-    resp = await client.post("/users", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.FORBIDDEN
+    resp = client.post("/users", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.FORBIDDEN
 
 
 @pytest.mark.integration
 async def test_get_user_by_id_unauthorized(
-    client: _TestClient,
+    client: TestClient,
     mocker: MockFixture,
-    token: MockFixture,
+    token_nonprivileged_user: MockFixture,
+    mock_user_insufficent_role: User,
 ) -> None:
     """Should return 403 Forbidden."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        side_effect=mock_user_object,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        return_value=mock_user_insufficent_role,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=AuthorizationError("Unauthorized"),
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user_insufficent_role,
     )
 
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token_nonprivileged_user}",
     }
 
-    resp = await client.get(f"/users/{USER_ID}", headers=headers)
-    assert resp.status == HTTPStatus.FORBIDDEN
+    resp = client.get(f"/users/{USER_ID}", headers=headers)
+    assert resp.status_code == HTTPStatus.FORBIDDEN
 
 
 @pytest.mark.integration
 async def test_update_user_by_id_unauthorized(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient,
+    mocker: MockFixture,
+    token_nonprivileged_user: MockFixture,
+    mock_user_insufficent_role: User,
 ) -> None:
     """Should return 403 Forbidden."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        side_effect=mock_user_object,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        return_value=mock_user_insufficent_role,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.update_user",
+        "app.adapters.users_adapter.UsersAdapter.update_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=AuthorizationError("Unauthorized"),
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user_insufficent_role,
     )
 
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token_nonprivileged_user}",
     }
 
     request_body = {
-        "id": USER_ID,
+        "id": str(USER_ID),
         "username": "updated.user@example.com",
         "password": "secret",
-        "role": "test",
+        "role": "admin",
     }
 
-    resp = await client.put(f"/users/{USER_ID}", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.FORBIDDEN
+    resp = client.put(f"/users/{USER_ID}", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.FORBIDDEN
 
 
 @pytest.mark.integration
 async def test_list_users_unauthorized(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient,
+    mocker: MockFixture,
+    token_nonprivileged_user: str,
+    mock_user_insufficent_role: User,
 ) -> None:
     """Should return 403 Forbidden."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_all_users",
-        return_value=[
-            {"id": USER_ID, "username": "Oslo Skagen Sprint", "role": "test"}
-        ],
+        "app.adapters.users_adapter.UsersAdapter.get_all_users",
+        return_value=[mock_user_insufficent_role],
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=AuthorizationError("Unauthorized"),
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user_insufficent_role,
     )
 
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token_nonprivileged_user}",
     }
 
-    resp = await client.get("/users", headers=headers)
-    assert resp.status == HTTPStatus.FORBIDDEN
+    resp = client.get("/users", headers=headers)
+    assert resp.status_code == HTTPStatus.FORBIDDEN
 
 
 @pytest.mark.integration
 async def test_delete_user_by_id_unauthorized(
-    client: _TestClient, mocker: MockFixture, token: MockFixture
+    client: TestClient,
+    mocker: MockFixture,
+    token_nonprivileged_user: str,
+    mock_user_insufficent_role: User,
 ) -> None:
     """Should return 403 Forbidden."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        side_effect=mock_user_object,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        return_value=mock_user_insufficent_role,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.delete_user",
+        "app.adapters.users_adapter.UsersAdapter.delete_user",
         return_value=USER_ID,
     )
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_user,
-    )
-    mocker.patch(
-        "user_service.services.AuthorizationService.authorize",
-        side_effect=AuthorizationError("Unauthorized"),
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_user_insufficent_role,
     )
 
     headers = {
-        hdrs.AUTHORIZATION: f"Bearer {token}",
+        "Authorization": f"Bearer {token_nonprivileged_user}",
     }
 
-    resp = await client.delete(f"/users/{USER_ID}", headers=headers)
-    assert resp.status == HTTPStatus.FORBIDDEN
+    resp = client.delete(f"/users/{USER_ID}", headers=headers)
+    assert resp.status_code == HTTPStatus.FORBIDDEN
