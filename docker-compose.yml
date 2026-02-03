@@ -3,7 +3,7 @@ services:
     build: .
     image: ghcr.io/langrenn-sprint/user-service:test
     ports:
-      - "8080:8080"
+      - "8080:8000"
     environment:
       - JWT_SECRET=${JWT_SECRET}
       - ADMIN_USERNAME=${ADMIN_USERNAME}

@@ -5,7 +5,6 @@ from .authorization_service import (
     AuthorizationService,
     IncompleteTokenError,
     InconsistentTokenError,
-    InvalidInputError,
     InvalidTokenError,
     UserNotAuthorizedError,
 )
@@ -23,7 +22,6 @@ __all__ = [
     "IllegalValueError",
     "IncompleteTokenError",
     "InconsistentTokenError",
-    "InvalidInputError",
     "InvalidTokenError",
     "LoginService",
     "UnknownUserError",

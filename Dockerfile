@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.14.2-slim
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -14,7 +14,7 @@ WORKDIR /app
 RUN uv sync --frozen
 
 # Expose the application port.
-EXPOSE 8080
+EXPOSE 8000
 
 # Run the application.
-CMD ["/app/.venv/bin/gunicorn", "user_service:create_app",  "--config=user_service/gunicorn_config.py", "--worker-class", "aiohttp.GunicornWebWorker"]
+CMD ["/app/.venv/bin/uvicorn", "app:api",  "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--log-config=logging.yaml"]

@@ -8,20 +8,8 @@ from typing import Any
 
 import pytest
 import requests
-from aiohttp.test_utils import TestClient as _TestClient
-from dotenv import load_dotenv
 
-from user_service import create_app
-
-load_dotenv()
-HOST_PORT = int(env.get("HOST_PORT", "8080"))
-
-
-@pytest.fixture
-async def client(aiohttp_client: Any) -> _TestClient:
-    """Instantiate server and start it."""
-    app = await create_app()
-    return await aiohttp_client(app)
+HOST_PORT = int(env.get("HOST_PORT", "8000"))
 
 
 def is_responsive(url: str) -> bool:
@@ -53,3 +41,10 @@ def http_service(docker_ip: Any, docker_services: Any) -> Any:
 def docker_compose_file(pytestconfig: Any) -> Any:
     """Override default location of docker-compose.yml file."""
     return Path(str(pytestconfig.rootdir)) / "docker-compose.yml"
+
+
+@pytest.fixture(scope="session")
+def docker_cleanup(pytestconfig: Any) -> Any:
+    """Override default location of docker-compose.yml file."""
+    _ = pytestconfig
+    return "stop"

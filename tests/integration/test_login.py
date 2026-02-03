@@ -2,38 +2,46 @@
 
 import os
 from http import HTTPStatus
+from uuid import UUID
 
 import jwt
 import pytest
-from aiohttp import hdrs
-from aiohttp.test_utils import TestClient as _TestClient
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from pytest_mock import MockFixture
 
-from user_service.models import User
+from app.main import api
+from app.models import Role, User
 
-ID = "290e70d5-0933-4af0-bb53-1d705ba7eb95"
+ID = UUID("290e70d5-0933-4af0-bb53-1d705ba7eb95")
 
 
-async def mock_test_user(db: str, username: str) -> User:
+@pytest.fixture
+def client() -> TestClient:
+    """Fixture to create a test client for the FastAPI application."""
+    return TestClient(api)
+
+
+@pytest.fixture
+async def mock_test_user() -> User:
     """Create a mock user object."""
-    _ = (db, username)
-    return User(id=ID, username="test", password="test", role="user-admin")  # noqa: S106
+    return User(id=ID, username="test", password=SecretStr("test"), role=Role.ADMIN)
 
 
 @pytest.mark.integration
-async def test_login_admin_user_password(client: _TestClient) -> None:
+async def test_login_admin_user_password(client: TestClient) -> None:
     """Should return 200 OK and a valid token."""
     request_body = {
         "username": os.getenv("ADMIN_USERNAME"),
         "password": os.getenv("ADMIN_PASSWORD"),
     }
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
+        "Content-Type": "application/json",
     }
 
-    resp = await client.post("/login", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.OK
-    body = await resp.json()
+    resp = client.post("/login", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.OK, resp.text
+    body = resp.json()
     assert type(body) is dict
     assert body["token"]
     jwt.decode(body["token"], os.getenv("JWT_SECRET"), algorithms=["HS256"])
@@ -41,12 +49,12 @@ async def test_login_admin_user_password(client: _TestClient) -> None:
 
 @pytest.mark.integration
 async def test_login_valid_user_password(
-    client: _TestClient, mocker: MockFixture
+    client: TestClient, mocker: MockFixture, mock_test_user: User
 ) -> None:
     """Should return 200 OK and a valid token."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_test_user,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_test_user,
     )
 
     request_body = {
@@ -54,12 +62,12 @@ async def test_login_valid_user_password(
         "password": "test",
     }
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
+        "Content-Type": "application/json",
     }
 
-    resp = await client.post("/login", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.OK
-    body = await resp.json()
+    resp = client.post("/login", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.OK
+    body = resp.json()
     assert type(body) is dict
     assert body["token"]
     jwt.decode(body["token"], os.getenv("JWT_SECRET"), algorithms=["HS256"])
@@ -69,10 +77,10 @@ async def test_login_valid_user_password(
 
 
 @pytest.mark.integration
-async def test_login_invalid_user(client: _TestClient, mocker: MockFixture) -> None:
+async def test_login_invalid_user(client: TestClient, mocker: MockFixture) -> None:
     """Should return 401 Unauthorized."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
         return_value=None,
     )
 
@@ -81,38 +89,40 @@ async def test_login_invalid_user(client: _TestClient, mocker: MockFixture) -> N
         "password": os.getenv("ADMIN_PASSWORD"),
     }
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
+        "Content-Type": "application/json",
     }
 
-    resp = await client.post("/login", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.UNAUTHORIZED
+    resp = client.post("/login", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 
 @pytest.mark.integration
-async def test_login_wrong_password(client: _TestClient, mocker: MockFixture) -> None:
+async def test_login_wrong_password(
+    client: TestClient, mocker: MockFixture, mock_test_user: User
+) -> None:
     """Should return 401 Unauthorized."""
     mocker.patch(
-        "user_service.adapters.users_adapter.UsersAdapter.get_user_by_username",
-        side_effect=mock_test_user,
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=mock_test_user,
     )
     request_body = {
         "username": "test",
         "password": "WRONG_PASSWORD",
     }
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
+        "Content-Type": "application/json",
     }
 
-    resp = await client.post("/login", headers=headers, json=request_body)
-    assert resp.status == HTTPStatus.UNAUTHORIZED
+    resp = client.post("/login", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 
 @pytest.mark.integration
-async def test_login_no_body_in_request(client: _TestClient) -> None:
-    """Should return 400 Bad Request."""
+async def test_login_no_body_in_request(client: TestClient) -> None:
+    """Should return 422 UNPROCESSABLE_ENTITY."""
     headers = {
-        hdrs.CONTENT_TYPE: "application/json",
+        "Content-Type": "application/json",
     }
 
-    resp = await client.post("/login", headers=headers)
-    assert resp.status == HTTPStatus.BAD_REQUEST
+    resp = client.post("/login", headers=headers)
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
