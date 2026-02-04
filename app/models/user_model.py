@@ -1,12 +1,12 @@
 """User data class module."""
 
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 
-class Role(str, Enum):
+class Role(StrEnum):
     """Enum representing different valid roles."""
 
     ADMIN = "admin"
