@@ -28,6 +28,9 @@ dev = [
     "ty>=0.0.14",
 ]
 
+[tool.uv]
+required-version = "0.9.29"
+
 [tool.poe.tasks]
 format = { cmd = "uv run ruff format" }
 lint = { cmd = "uv run ruff check --fix" }
