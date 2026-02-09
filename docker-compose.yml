@@ -17,7 +17,7 @@ services:
       - "mongodb"
 
   mongodb:
-    image: mongo:latest
+    image: mongo:7-jammy
     ports:
       - 27017:27017
     environment:
