@@ -64,7 +64,7 @@ class LoginService:
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             user = User(
                 username=ADMIN_USERNAME,
-                password=SecretStr(ADMIN_PASSWORD),  # type: ignore[invalide-argument-type]
+                password=SecretStr(ADMIN_PASSWORD),
                 role=Role.ADMIN,
             )
         else:

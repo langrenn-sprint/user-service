@@ -29,7 +29,7 @@ dev = [
 ]
 
 [tool.uv]
-required-version = "0.9.29"
+required-version = ">=0.13.7"
 
 [tool.poe.tasks]
 format = { cmd = "uv run ruff format" }
@@ -56,6 +56,7 @@ select = ["ALL"]
 # and then manually ignore annoying ones:
 ignore = [
     "ANN401", # Any should be allowed
+    "CPY001", # No copyright notices in this project
     "D211",
     "D213",
     "COM812",
