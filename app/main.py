@@ -133,6 +133,7 @@ async def token_exception_handler(request: Request, exc: TokenError) -> JSONResp
         return JSONResponse(
             status_code=401,
             content={"detail": "Not authenticated"},
+            headers={"WWW-Authenticate": "Bearer"},
         )
     # Any other token error is a server problem, e.g. APIConfigurationError when
     # JWT_SECRET is missing. The details are logged where the error is raised,

@@ -119,7 +119,7 @@ async def get_current_token(
         # Handle both machine-to-machine and user tokens
         sub = payload["username"]
         name = payload.get("name", "")
-        role = payload.get("role", "")
+        role = payload["role"]
         exp = payload["exp"]
 
         return TokenData(
