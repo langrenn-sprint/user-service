@@ -4,8 +4,12 @@ import logging
 from typing import Any
 from uuid import UUID
 
+from pydantic import SecretStr
+
 from app.adapters import UsersAdapter
 from app.models import User
+
+from .passwords import hash_password, is_password_hash
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +53,8 @@ class UsersService:
         if user.username == "admin":
             msg = 'Cannot create user with username "admin".'
             raise IllegalValueError(msg) from None
+        # Store a hash of the password, never the password itself:
+        user.password = SecretStr(hash_password(user.password.get_secret_value()))
         # insert new user
         result = await UsersAdapter.create_user(user)
         logger.debug("inserted user with id: %s", user.id)
@@ -70,9 +76,31 @@ class UsersService:
             if user.id != old_user.id:
                 msg = "Cannot change id for user."
                 raise IllegalValueError(msg) from None
+            # Store a hash of the password, never the password itself:
+            user.password = SecretStr(hash_password(user.password.get_secret_value()))
             return await UsersAdapter.update_user(user_id, user)
         msg = f"User with id {user_id} not found."
         raise UserNotFoundError(msg) from None
+
+    @classmethod
+    async def hash_plaintext_passwords(cls: Any) -> int:
+        """Replace every password stored in plain text with a hash of it.
+
+        Users stored before passwords were hashed have their password in plain
+        text. This runs on startup, and does nothing for passwords that are
+        already hashed, so it is safe to run repeatedly.
+
+        Returns:
+            int: The number of passwords that were hashed.
+
+        """
+        count = 0
+        for user in await UsersAdapter.get_all_users():
+            password = user["password"]
+            if not is_password_hash(password):
+                await UsersAdapter.update_password(user["id"], hash_password(password))
+                count += 1
+        return count
 
     @classmethod
     async def delete_user(cls: Any, user_id: UUID) -> None:

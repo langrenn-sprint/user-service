@@ -58,6 +58,13 @@ class UsersAdapter:
         return _result.upserted_id
 
     @classmethod
+    async def update_password(cls: Any, user_id: UUID, password_hash: str) -> None:
+        """Update the stored password hash of a user."""
+        await cls.database.users_collection.update_one(
+            {"id": user_id}, {"$set": {"password": password_hash}}
+        )
+
+    @classmethod
     async def delete_user(cls: Any, user_id: UUID) -> None:
         """Delete user function."""
         _user = await cls.database.users_collection.find_one({"id": user_id})
