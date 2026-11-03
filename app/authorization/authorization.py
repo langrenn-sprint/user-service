@@ -60,23 +60,23 @@ class TokenValidator:
 
         except jwt.ExpiredSignatureError as e:
             msg = "Token has expired"
-            logger.exception(msg)
+            logger.warning(msg)
             raise TokenValidationError(msg) from e
         except jwt.InvalidSignatureError as e:
             msg = "Token signature is invalid"
-            logger.exception(msg)
+            logger.warning(msg)
             raise TokenValidationError(msg) from e
         except jwt.DecodeError as e:
             msg = "Token could not be decoded"
-            logger.exception(msg)
+            logger.warning(msg)
             raise TokenValidationError(msg) from e
         except jwt.MissingRequiredClaimError as e:
             msg = f"Token is missing required claim: {e!s}"
-            logger.exception(msg)
+            logger.warning(msg)
             raise TokenValidationError(msg) from e
         except jwt.InvalidTokenError as e:
             msg = "Token is invalid"
-            logger.exception(msg)
+            logger.warning(msg)
             raise TokenValidationError(msg) from e
 
 
@@ -107,7 +107,7 @@ async def get_current_token(
 
     if not token:
         msg = "Authorization header missing or not a Bearer token"
-        logger.error(msg)
+        logger.warning(msg)
         raise TokenMissingError(msg)
 
     # Otherwise, validate as JWT token:
@@ -130,7 +130,7 @@ async def get_current_token(
         )
     except KeyError as e:
         msg = f"Missing expected claim in token: {e}"
-        logger.exception(msg)
+        logger.warning(msg)
         raise TokenValidationError(msg) from e
 
 
