@@ -1,5 +1,6 @@
 """Integration test cases for the authorize route."""
 
+import logging
 import os
 from http import HTTPStatus
 from typing import Any
@@ -240,6 +241,34 @@ async def test_authorize_invalid_token(
 
     resp = client.post("/authorize", headers=headers, json=request_body)
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
+
+
+@pytest.mark.integration
+async def test_authorize_invalid_token_is_logged_once_without_traceback(
+    client: TestClient,
+    token_invalid: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Should log one warning without a stack trace, also at DEBUG level."""
+    request_body = {"token": token_invalid, "target_roles": ["admin"]}
+    # The "app" logger does not propagate to the root logger, so attach caplog to it:
+    app_logger = logging.getLogger("app")
+    level = app_logger.level
+    app_logger.setLevel(logging.DEBUG)
+    app_logger.addHandler(caplog.handler)
+    try:
+        resp = client.post("/authorize", json=request_body)
+    finally:
+        app_logger.removeHandler(caplog.handler)
+        app_logger.setLevel(level)
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
+
+    records = [r for r in caplog.records if r.name.startswith("app.")]
+    assert len(records) == 1
+    assert records[0].name == "app.routers.authorize"
+    assert records[0].levelno == logging.WARNING
+    assert records[0].getMessage().startswith("Authorization failed: Token is invalid")
+    assert records[0].exc_info is None
 
 
 @pytest.mark.integration
