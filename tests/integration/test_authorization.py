@@ -85,6 +85,29 @@ async def test_token_without_role_claim(client: TestClient) -> None:
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize(
+    "claims",
+    [
+        {"username": "admin", "role": None},
+        {"username": "admin", "role": ""},
+        {"username": "admin", "role": 123},
+        {"username": None, "role": "admin"},
+        {"username": "", "role": "admin"},
+        {"username": 123, "role": "admin"},
+    ],
+)
+async def test_token_with_invalid_claim_values(
+    client: TestClient, claims: dict
+) -> None:
+    """Should return 401 Unauthorized for null, empty or non-string claims."""
+    payload = {**claims, "exp": 9999999999}
+    token = jwt.encode(payload, os.environ["JWT_SECRET"], "HS256")
+    resp = client.get(PROTECTED_URL, headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
+    assert resp.headers["WWW-Authenticate"] == "Bearer"
+
+
+@pytest.mark.integration
 async def test_valid_token_with_insufficient_role(client: TestClient) -> None:
     """Should return 403 Forbidden."""
     token = _token(os.environ["JWT_SECRET"], exp=9999999999, role="event-admin")
