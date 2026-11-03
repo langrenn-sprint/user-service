@@ -39,7 +39,7 @@ class EndpointFilter(logging.Filter):
         if (  # noqa: SIM103
             record.args
             and len(record.args) >= 3  # noqa: PLR2004
-            and record.args[2] in self.excluded_endpoints  # type: ignore[invalid-argument-type]
+            and record.args[2] in self.excluded_endpoints  # ty: ignore[invalid-argument-type]
         ):
             return False  # Exclude this log record
         return True  # Include this log record
