@@ -121,17 +121,24 @@ async def get_current_token(
         name = payload.get("name", "")
         role = payload["role"]
         exp = payload["exp"]
-
-        return TokenData(
-            sub=sub,
-            name=name,
-            roles=[role],
-            exp=exp,
-        )
     except KeyError as e:
         msg = f"Missing expected claim in token: {e}"
         logger.warning(msg)
         raise TokenValidationError(msg) from e
+
+    # The claims must also have usable values, e.g. not null or empty:
+    for claim, value in (("username", sub), ("role", role)):
+        if not isinstance(value, str) or not value:
+            msg = f"Invalid {claim} claim in token"
+            logger.warning(msg)
+            raise TokenValidationError(msg)
+
+    return TokenData(
+        sub=sub,
+        name=name,
+        roles=[role],
+        exp=exp,
+    )
 
 
 class RoleChecker:
