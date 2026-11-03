@@ -118,6 +118,5 @@ async def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:
-        logger.debug("Got excpetion %s", e)
         msg = f"Token is invalid: {type(e)}"
         raise InvalidTokenError(msg) from e

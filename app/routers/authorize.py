@@ -1,7 +1,6 @@
 """Resource module for authorize resources."""
 
 import logging
-import traceback
 from http import HTTPStatus
 
 from fastapi import APIRouter, HTTPException
@@ -33,7 +32,8 @@ async def post(authorization_request: AuthorizationRequest) -> Response:
         InvalidTokenError,
         IncompleteTokenError,
     ) as e:
-        logger.debug(traceback.format_exc())
+        # A routine client error: log one line, without a stack trace.
+        logger.warning("Authorization failed: %s", e)
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail=str(e)) from e
     except (UserNotAuthorizedError, InconsistentTokenError) as e:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e)) from e
