@@ -16,6 +16,7 @@ from .authorization import (
     TokenValidationError,
 )
 from .routers import authorize, login, ping, ready, users
+from .services import UsersService
 
 LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO")
 DB_HOST = os.getenv("DB_HOST", "localhost")
@@ -105,6 +106,11 @@ async def lifespan(api: FastAPI) -> AsyncGenerator[None]:  # noqa: ARG001  # pra
 
     await LivenessAdapter.init(db)
     await UsersAdapter.init(db)
+
+    # Hash any passwords still stored in plain text:
+    hashed = await UsersService.hash_plaintext_passwords()
+    if hashed:
+        logger.info("Hashed %s password(s) that were stored in plain text.", hashed)
 
     yield
 

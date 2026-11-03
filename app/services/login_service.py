@@ -1,5 +1,6 @@
 """Module for login functions."""
 
+import hmac
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -9,6 +10,13 @@ from pydantic import SecretStr
 
 from app.adapters import UsersAdapter
 from app.models import Role, User
+
+from .passwords import (
+    hash_password,
+    needs_rehash,
+    verify_dummy_password,
+    verify_password,
+)
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
@@ -59,24 +67,32 @@ class LoginService:
 
         """
         # First we see if it is the admin trying to log in.
-        # Then we need to check if we have the user in our db,
-        user = None
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-            user = User(
+        # The admin password is configured in the environment, not stored:
+        if username == ADMIN_USERNAME and hmac.compare_digest(
+            password.encode(), str(ADMIN_PASSWORD).encode()
+        ):
+            admin = User(
                 username=ADMIN_USERNAME,
-                password=SecretStr(ADMIN_PASSWORD),
+                password=SecretStr(str(ADMIN_PASSWORD)),
                 role=Role.ADMIN,
             )
-        else:
-            user = await UsersAdapter.get_user_by_username(username)
+            return await create_access_token(admin)
 
-        # Evaluate what we have in the user-object:
+        # Then we need to check if we have the user in our db:
+        user = await UsersAdapter.get_user_by_username(username)
         if not user:
+            # Spend the same time as for a known user, so that the response
+            # time does not reveal whether the username exists:
+            verify_dummy_password(password)
             msg = f"Username {username} not found."
             raise UnknownUserError(msg) from None
-        if SecretStr(password) != user.password:
+        password_hash = user.password.get_secret_value()
+        if not verify_password(password_hash, password):
             msg = f"Password for {username} did not match."
             raise WrongPasswordError(msg) from None
+        # Upgrade the hash if the hashing parameters have changed since it was made:
+        if needs_rehash(password_hash):
+            await UsersAdapter.update_password(user.id, hash_password(password))
 
         return await create_access_token(user)
 

@@ -12,6 +12,7 @@ from pytest_mock import MockFixture
 
 from app import api
 from app.models import Role, User
+from app.services.passwords import is_password_hash, verify_password
 
 USER_ID = UUID("2330b904efcc4ac08c01375b19c12a44")
 
@@ -94,6 +95,60 @@ async def test_create_user(
     resp = client.post("/users", headers=headers, json=request_body)
     assert resp.status_code == HTTPStatus.CREATED, resp.text
     assert f"/users/{mock_user.id}" in resp.headers["Location"]
+
+
+@pytest.mark.integration
+async def test_create_user_stores_password_hash(
+    client: TestClient, mocker: MockFixture, token: str
+) -> None:
+    """Should store a hash of the password, not the password itself."""
+    create_user = mocker.patch(
+        "app.adapters.users_adapter.UsersAdapter.create_user",
+        return_value=USER_ID,
+    )
+    request_body = {
+        "id": USER_ID.hex,
+        "username": "user@example.com",
+        "password": "secret",
+        "role": "admin",
+    }
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post("/users", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.CREATED, resp.text
+
+    stored = create_user.await_args_list[0].args[0].password.get_secret_value()
+    assert is_password_hash(stored)
+    assert verify_password(stored, "secret")
+
+
+@pytest.mark.integration
+async def test_update_user_stores_password_hash(
+    client: TestClient, mocker: MockFixture, token: str, mock_user: User
+) -> None:
+    """Should store a hash of the new password, not the password itself."""
+    mocker.patch(
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        return_value=mock_user,
+    )
+    update_user = mocker.patch(
+        "app.adapters.users_adapter.UsersAdapter.update_user",
+        return_value=USER_ID,
+    )
+    request_body = {
+        "id": str(USER_ID),
+        "username": "updated.user@example.com",
+        "password": "newsecret",
+        "role": "admin",
+    }
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.put(f"/users/{USER_ID}", headers=headers, json=request_body)
+    assert resp.status_code == HTTPStatus.NO_CONTENT, resp.text
+
+    stored = update_user.await_args_list[0].args[1].password.get_secret_value()
+    assert is_password_hash(stored)
+    assert verify_password(stored, "newsecret")
 
 
 @pytest.mark.integration

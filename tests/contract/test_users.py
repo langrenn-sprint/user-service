@@ -79,6 +79,31 @@ async def test_create_user(http_service: Any, token: MockFixture) -> None:
 
 @pytest.mark.contract
 @pytest.mark.asyncio
+async def test_login_created_user_password_is_hashed(http_service: Any) -> None:
+    """Should log in the new user, and store a hash, not the password."""
+    async with AsyncClient() as client:
+        response = await client.post(
+            f"{http_service}/login",
+            json={"username": "user@example.com", "password": "secret"},
+        )
+    assert response.status_code == HTTPStatus.OK, response.text
+
+    mongo = motor.motor_asyncio.AsyncIOMotorClient(
+        host=DB_HOST, port=DB_PORT, username=DB_USER, password=DB_PASSWORD
+    )
+    try:
+        user = await mongo[f"{DB_NAME}"].users_collection.find_one(
+            {"username": "user@example.com"}
+        )
+    finally:
+        mongo.close()
+    assert user
+    assert user["password"].startswith("$argon2id$")
+    assert "secret" not in user["password"]
+
+
+@pytest.mark.contract
+@pytest.mark.asyncio
 async def test_get_users(http_service: Any, token: MockFixture) -> None:
     """Should return 200 OK and a list of users as json."""
     url = f"{http_service}/users"
@@ -149,6 +174,21 @@ async def test_update_user(http_service: Any, token: MockFixture) -> None:
         response = await client.put(url, headers=headers, json=request_body)
 
     assert response.status_code == HTTPStatus.NO_CONTENT, response.text
+
+
+@pytest.mark.contract
+@pytest.mark.asyncio
+async def test_login_with_updated_password(http_service: Any) -> None:
+    """Should log in with the new password, and not with the old one."""
+    url = f"{http_service}/login"
+    username = "user@example.com updated"
+    async with AsyncClient() as client:
+        new = await client.post(
+            url, json={"username": username, "password": "newsecret"}
+        )
+        old = await client.post(url, json={"username": username, "password": "secret"})
+    assert new.status_code == HTTPStatus.OK, new.text
+    assert old.status_code == HTTPStatus.UNAUTHORIZED
 
 
 @pytest.mark.contract
