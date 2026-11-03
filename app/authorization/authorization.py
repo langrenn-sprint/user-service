@@ -16,7 +16,7 @@ from fastapi.security import (
 from app.models import Role
 
 # Set upp logging:
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 class TokenError(Exception):
