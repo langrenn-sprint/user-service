@@ -18,7 +18,7 @@ from app.services import (
 
 router = APIRouter()
 
-logger = logging.getLogger("app.authorize_view.AuthorizeView")
+logger = logging.getLogger(__name__)
 
 
 @router.post("/authorize")

@@ -14,7 +14,7 @@ ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 JWT_SECRET: str | None = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 
-logger = logging.getLogger("app.authorization_service")
+logger = logging.getLogger(__name__)
 
 
 class AuthorizationError(Exception):
@@ -64,8 +64,6 @@ class IncompleteTokenError(AuthorizationError):
 
 class AuthorizationService:
     """Class representing a service for users."""
-
-    logger = logging.getLogger("app.authorization_service.AuthorizationService")
 
     @classmethod
     async def authorize(cls: Any, autorization_request: AuthorizationRequest) -> None:
@@ -117,7 +115,6 @@ class AuthorizationService:
 
 async def decode_token(token: str) -> dict:
     """Decode token."""
-    logger.debug("Got jwt_token %s", token)
     try:
         return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:

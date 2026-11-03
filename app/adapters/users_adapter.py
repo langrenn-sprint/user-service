@@ -6,28 +6,24 @@ from uuid import UUID
 
 from app.models import User
 
+logger = logging.getLogger(__name__)
+
 
 class UsersAdapter:
     """Class representing an adapter for users."""
 
     database: Any
-    logger: logging.Logger
 
     @classmethod
     async def init(cls, database: Any) -> None:  # pragma: no cover
         """Initialize class properties."""
         cls.database = database
-        cls.logger = logging.getLogger(__name__)
 
     @classmethod
     async def get_all_users(cls: Any) -> list:
         """Get all users function."""
-        users: list = []
         cursor = cls.database.users_collection.find()
-        for user in await cursor.to_list(length=100):
-            users.append(user)
-            cls.logger.debug(user)
-        return users
+        return await cursor.to_list(length=100)
 
     @classmethod
     async def create_user(cls: Any, user: User) -> UUID:

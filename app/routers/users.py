@@ -25,7 +25,7 @@ BASE_URL = f"http://{HOST_SERVER}:{HOST_PORT}"
 
 router = APIRouter()
 
-logger = logging.getLogger("app.users_view.UsersView")
+logger = logging.getLogger(__name__)
 
 
 @router.get(

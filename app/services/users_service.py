@@ -7,6 +7,8 @@ from uuid import UUID
 from app.adapters import UsersAdapter
 from app.models import User
 
+logger = logging.getLogger(__name__)
+
 
 class IllegalValueError(Exception):
     """Class representing custom exception for fetch method."""
@@ -29,8 +31,6 @@ class UserNotFoundError(Exception):
 class UsersService:
     """Class representing a service for users."""
 
-    logger = logging.getLogger("app.users_service.UsersService")
-
     @classmethod
     async def create_user(cls: Any, user: User) -> UUID | None:
         """Create user function.
@@ -51,7 +51,7 @@ class UsersService:
             raise IllegalValueError(msg) from None
         # insert new user
         result = await UsersAdapter.create_user(user)
-        cls.logger.debug("inserted user with id: %s", user.id)
+        logger.debug("inserted user with id: %s", user.id)
         if result:
             return user.id
         return None
