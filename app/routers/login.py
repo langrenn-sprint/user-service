@@ -4,6 +4,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
+from app.models import LoginRequest
 from app.services import (
     LoginService,
     UnknownUserError,
@@ -16,10 +17,12 @@ router = APIRouter()
 
 
 @router.post("/login")
-async def post(user: dict) -> dict:
+async def post(login_request: LoginRequest) -> dict:
     """Login route function."""
     try:
-        jwt_token = await LoginService.login(user["username"], user["password"])
+        jwt_token = await LoginService.login(
+            login_request.username, login_request.password
+        )
     except (UnknownUserError, WrongPasswordError) as e:
         raise HTTPException(
             status_code=401, detail="Incorrect username or password"

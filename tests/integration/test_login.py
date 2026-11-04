@@ -194,3 +194,20 @@ async def test_login_no_body_in_request(client: TestClient) -> None:
 
     resp = client.post("/login", headers=headers)
     assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"username": "admin", "password": None},
+        {"username": "admin", "password": 123},
+        {"username": None, "password": "secret"},
+        {"username": "admin"},
+        {"password": "secret"},
+    ],
+)
+async def test_login_invalid_body(client: TestClient, body: dict) -> None:
+    """Should return 422 UNPROCESSABLE_ENTITY, not 500, for a malformed body."""
+    resp = client.post("/login", json=body)
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
