@@ -9,8 +9,11 @@ from typing import Any
 import jwt
 import motor.motor_asyncio
 import pytest
+from argon2 import PasswordHasher
 from httpx import AsyncClient
 from pytest_mock import MockFixture
+
+from app.services.passwords import PASSWORD_HASH_MONGO_REGEX
 
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = int(os.getenv("DB_PORT", "27017"))
@@ -209,3 +212,35 @@ async def test_delete_user(http_service: Any, token: MockFixture) -> None:
         url = f"{url}/{_id}"
         response = await client.delete(url, headers=headers)
     assert response.status_code == HTTPStatus.NO_CONTENT, response.text
+
+
+@pytest.mark.contract
+@pytest.mark.asyncio
+async def test_plaintext_password_query_in_mongodb() -> None:
+    """Should select plain-text passwords, also those resembling a hash, in MongoDB."""
+    password_hash = PasswordHasher().hash("secret")
+    mongo = motor.motor_asyncio.AsyncIOMotorClient(
+        host=DB_HOST, port=DB_PORT, username=DB_USER, password=DB_PASSWORD
+    )
+    collection = mongo[f"{DB_NAME}"].password_regex_test
+    try:
+        await collection.insert_many(
+            [
+                {"password": password_hash},
+                {"password": "secret"},
+                {"password": "$argon2-my-password"},
+                {"password": password_hash + "\n"},
+            ]
+        )
+        cursor = collection.find(
+            {"password": {"$not": {"$regex": PASSWORD_HASH_MONGO_REGEX}}},
+            {"_id": 0, "password": 1},
+        )
+        found = [doc["password"] for doc in await cursor.to_list(length=None)]
+    finally:
+        await collection.drop()
+        mongo.close()
+
+    assert sorted(found) == sorted(
+        ["secret", "$argon2-my-password", password_hash + "\n"]
+    )

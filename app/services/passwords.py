@@ -1,6 +1,7 @@
 """Module for hashing and verifying passwords."""
 
 import asyncio
+import re
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
@@ -8,6 +9,18 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 
 _hasher = PasswordHasher()
+
+# A complete argon2 encoding, like "$argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>".
+# A prefix check is not enough: a plain-text password may start with "$argon2".
+_HASH_PATTERN = (
+    r"\$argon2(?:id|i|d)\$(?:v=\d+\$)?m=\d+,t=\d+,p=\d+"
+    r"\$[A-Za-z0-9+/]+\$[A-Za-z0-9+/]+"
+)
+_HASH_REGEX = re.compile(_HASH_PATTERN)
+
+# The same pattern anchored for a MongoDB $regex query, so the database and
+# is_password_hash agree. In MongoDB's PCRE, \z (not $) is the very end:
+PASSWORD_HASH_MONGO_REGEX = rf"^{_HASH_PATTERN}\z"
 
 # Argon2 deliberately takes tens of milliseconds of CPU time, which would block
 # the event loop and stall all other requests. Run it in a thread pool instead.
@@ -56,4 +69,4 @@ def needs_rehash(password_hash: str) -> bool:
 
 def is_password_hash(value: str) -> bool:
     """Return True if the value is an argon2 hash, not a plain-text password."""
-    return value.startswith("$argon2")
+    return _HASH_REGEX.fullmatch(value) is not None

@@ -57,6 +57,17 @@ async def test_is_password_hash() -> None:
 
 
 @pytest.mark.unit
+async def test_is_password_hash_rejects_lookalike_plaintext() -> None:
+    """Should treat a plain-text password that only resembles a hash as plain text."""
+    password_hash = await hash_password("secret")
+    assert not is_password_hash("$argon2-my-password")
+    assert not is_password_hash("$argon2id$")
+    assert not is_password_hash(password_hash.rsplit("$", 1)[0])  # no hash part
+    assert not is_password_hash(password_hash + "\n")
+    assert not is_password_hash(" " + password_hash)
+
+
+@pytest.mark.unit
 async def test_argon2_runs_in_thread_pool() -> None:
     """Should run argon2 work in the bounded thread pool, not on the event loop."""
     thread_name = await passwords._run(lambda: threading.current_thread().name)  # noqa: SLF001
