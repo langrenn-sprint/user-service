@@ -216,8 +216,9 @@ async def test_delete_user(http_service: Any, token: MockFixture) -> None:
 
 @pytest.mark.contract
 @pytest.mark.asyncio
-async def test_plaintext_password_query_in_mongodb() -> None:
+async def test_plaintext_password_query_in_mongodb(http_service: Any) -> None:
     """Should select plain-text passwords, also those resembling a hash, in MongoDB."""
+    _ = http_service  # starts the services, including MongoDB
     password_hash = PasswordHasher().hash("secret")
     mongo = motor.motor_asyncio.AsyncIOMotorClient(
         host=DB_HOST, port=DB_PORT, username=DB_USER, password=DB_PASSWORD
