@@ -6,7 +6,7 @@ import pytest
 from pytest_mock import MockFixture
 
 from app.services import UsersService
-from app.services.passwords import verify_password
+from app.services.passwords import PASSWORD_HASH_MONGO_REGEX, verify_password
 
 
 @pytest.mark.integration
@@ -14,11 +14,11 @@ async def test_hash_plaintext_passwords(mocker: MockFixture) -> None:
     """Should replace each plain-text password with a hash of it."""
     first_id = uuid.uuid4()
     second_id = uuid.uuid4()
-    mocker.patch(
+    get_users = mocker.patch(
         "app.adapters.users_adapter.UsersAdapter.get_users_with_plaintext_password",
         return_value=[
             {"id": first_id, "password": "secret"},
-            {"id": second_id, "password": "other"},
+            {"id": second_id, "password": "$argon2-my-password"},
         ],
     )
     update_password = mocker.patch(
@@ -32,10 +32,11 @@ async def test_hash_plaintext_passwords(mocker: MockFixture) -> None:
     assert count == len(calls)
     assert [(user_id, old) for user_id, old, _ in calls] == [
         (first_id, "secret"),
-        (second_id, "other"),
+        (second_id, "$argon2-my-password"),
     ]
     assert await verify_password(calls[0][2], "secret")
-    assert await verify_password(calls[1][2], "other")
+    assert await verify_password(calls[1][2], "$argon2-my-password")
+    get_users.assert_awaited_once_with(PASSWORD_HASH_MONGO_REGEX)
 
 
 @pytest.mark.integration

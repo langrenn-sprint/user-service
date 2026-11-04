@@ -58,10 +58,17 @@ class UsersAdapter:
         return _result.upserted_id
 
     @classmethod
-    async def get_users_with_plaintext_password(cls: Any) -> list[dict]:
-        """Get the id and password of every user whose password is not a hash."""
+    async def get_users_with_plaintext_password(
+        cls: Any, hash_regex: str
+    ) -> list[dict]:
+        """Get the id and password of every user whose password is not a hash.
+
+        Args:
+            hash_regex (str): a MongoDB regex that matches a complete password hash.
+
+        """
         cursor = cls.database.users_collection.find(
-            {"password": {"$not": {"$regex": r"^\$argon2"}}},
+            {"password": {"$not": {"$regex": hash_regex}}},
             {"_id": 0, "id": 1, "password": 1},
         )
         return await cursor.to_list(length=None)

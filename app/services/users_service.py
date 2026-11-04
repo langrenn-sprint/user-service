@@ -9,7 +9,7 @@ from pydantic import SecretStr
 from app.adapters import UsersAdapter
 from app.models import User
 
-from .passwords import hash_password, is_password_hash
+from .passwords import PASSWORD_HASH_MONGO_REGEX, hash_password, is_password_hash
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,10 @@ class UsersService:
 
         """
         count = 0
-        for user in await UsersAdapter.get_users_with_plaintext_password():
+        users = await UsersAdapter.get_users_with_plaintext_password(
+            PASSWORD_HASH_MONGO_REGEX
+        )
+        for user in users:
             password = user["password"]
             if is_password_hash(password):  # pragma: no cover
                 continue  # the query should not return hashed passwords
