@@ -54,7 +54,7 @@ class UsersService:
             msg = 'Cannot create user with username "admin".'
             raise IllegalValueError(msg) from None
         # Store a hash of the password, never the password itself:
-        user.password = SecretStr(hash_password(user.password.get_secret_value()))
+        user.password = SecretStr(await hash_password(user.password.get_secret_value()))
         # insert new user
         result = await UsersAdapter.create_user(user)
         logger.debug("inserted user with id: %s", user.id)
@@ -77,7 +77,9 @@ class UsersService:
                 msg = "Cannot change id for user."
                 raise IllegalValueError(msg) from None
             # Store a hash of the password, never the password itself:
-            user.password = SecretStr(hash_password(user.password.get_secret_value()))
+            user.password = SecretStr(
+                await hash_password(user.password.get_secret_value())
+            )
             return await UsersAdapter.update_user(user_id, user)
         msg = f"User with id {user_id} not found."
         raise UserNotFoundError(msg) from None
@@ -95,10 +97,14 @@ class UsersService:
 
         """
         count = 0
-        for user in await UsersAdapter.get_all_users():
+        for user in await UsersAdapter.get_users_with_plaintext_password():
             password = user["password"]
-            if not is_password_hash(password):
-                await UsersAdapter.update_password(user["id"], hash_password(password))
+            if is_password_hash(password):  # pragma: no cover
+                continue  # the query should not return hashed passwords
+            # Only replaces the password if it has not been changed meanwhile:
+            if await UsersAdapter.update_password(
+                user["id"], password, await hash_password(password)
+            ):
                 count += 1
         return count
 

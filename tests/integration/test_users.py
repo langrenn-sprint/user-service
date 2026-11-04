@@ -119,7 +119,7 @@ async def test_create_user_stores_password_hash(
 
     stored = create_user.await_args_list[0].args[0].password.get_secret_value()
     assert is_password_hash(stored)
-    assert verify_password(stored, "secret")
+    assert await verify_password(stored, "secret")
 
 
 @pytest.mark.integration
@@ -148,7 +148,7 @@ async def test_update_user_stores_password_hash(
 
     stored = update_user.await_args_list[0].args[1].password.get_secret_value()
     assert is_password_hash(stored)
-    assert verify_password(stored, "newsecret")
+    assert await verify_password(stored, "newsecret")
 
 
 @pytest.mark.integration
