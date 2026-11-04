@@ -83,16 +83,19 @@ class LoginService:
         if not user:
             # Spend the same time as for a known user, so that the response
             # time does not reveal whether the username exists:
-            verify_dummy_password(password)
+            await verify_dummy_password(password)
             msg = f"Username {username} not found."
             raise UnknownUserError(msg) from None
         password_hash = user.password.get_secret_value()
-        if not verify_password(password_hash, password):
+        if not await verify_password(password_hash, password):
             msg = f"Password for {username} did not match."
             raise WrongPasswordError(msg) from None
-        # Upgrade the hash if the hashing parameters have changed since it was made:
+        # Upgrade the hash if the hashing parameters have changed since it was made.
+        # Only replaces the hash if the password has not been changed meanwhile:
         if needs_rehash(password_hash):
-            await UsersAdapter.update_password(user.id, hash_password(password))
+            await UsersAdapter.update_password(
+                user.id, password_hash, await hash_password(password)
+            )
 
         return await create_access_token(user)
 

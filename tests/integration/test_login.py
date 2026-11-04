@@ -30,7 +30,7 @@ async def mock_test_user() -> User:
     return User(
         id=ID,
         username="test",
-        password=SecretStr(hash_password("test")),
+        password=SecretStr(await hash_password("test")),
         role=Role.ADMIN,
     )
 
@@ -118,8 +118,9 @@ async def test_login_rehashes_outdated_hash(
     resp = client.post("/login", json={"username": "test", "password": "test"})
     assert resp.status_code == HTTPStatus.OK
     update_password.assert_awaited_once()
-    user_id, new_hash = update_password.await_args_list[0].args
+    user_id, old_hash, new_hash = update_password.await_args_list[0].args
     assert user_id == ID
+    assert old_hash == outdated_hash
     assert new_hash != outdated_hash
     assert PasswordHasher().verify(new_hash, "test")
     assert not PasswordHasher().check_needs_rehash(new_hash)

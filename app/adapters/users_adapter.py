@@ -58,11 +58,32 @@ class UsersAdapter:
         return _result.upserted_id
 
     @classmethod
-    async def update_password(cls: Any, user_id: UUID, password_hash: str) -> None:
-        """Update the stored password hash of a user."""
-        await cls.database.users_collection.update_one(
-            {"id": user_id}, {"$set": {"password": password_hash}}
+    async def get_users_with_plaintext_password(cls: Any) -> list[dict]:
+        """Get the id and password of every user whose password is not a hash."""
+        cursor = cls.database.users_collection.find(
+            {"password": {"$not": {"$regex": r"^\$argon2"}}},
+            {"_id": 0, "id": 1, "password": 1},
         )
+        return await cursor.to_list(length=None)
+
+    @classmethod
+    async def update_password(
+        cls: Any, user_id: UUID, old_password: str, new_password: str
+    ) -> bool:
+        """Replace the stored password, if it is still old_password.
+
+        The new value is derived from the old one, so it must not overwrite a
+        password that was changed in the meantime.
+
+        Returns:
+            bool: True if the password was replaced.
+
+        """
+        result = await cls.database.users_collection.update_one(
+            {"id": user_id, "password": old_password},
+            {"$set": {"password": new_password}},
+        )
+        return result.modified_count == 1
 
     @classmethod
     async def delete_user(cls: Any, user_id: UUID) -> None:
