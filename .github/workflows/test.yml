@@ -6,52 +6,14 @@ on:
     branches:
       - main
 
-env:
-  IMAGE: ghcr.io/langrenn-sprint/user-service
-
 jobs:
-  install-build-and-test:
+  build-and-test:
     name: Install, build and test
-    runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
-
-    steps:
-      - uses: actions/checkout@v5
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: "Set up Python"
-        uses: actions/setup-python@v6
-        with:
-          python-version-file: ".python-version"
-
-      - name: Install the project
-        run: uv sync --locked --all-extras --dev
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Extract image metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.IMAGE }}
-
-      - name: Build image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          load: true
-          tags: ${{ env.IMAGE }}:test
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Run linters, checks and tests
-        run: |
-          uv run poe release
-        env:
-          IMAGE_PREBUILT: "1"
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+    permissions:
+      contents: read
+    uses: langrenn-sprint/.github/.github/workflows/build-test-publish.yml@reusable-build-test-publish
+    secrets:
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
