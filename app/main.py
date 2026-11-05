@@ -15,7 +15,7 @@ from .authorization import (
     TokenMissingError,
     TokenValidationError,
 )
-from .routers import authorize, login, ping, ready, users
+from .routers import authorize, login, ping, ready, token, users
 from .services import UsersService
 
 LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO")
@@ -154,5 +154,6 @@ async def token_exception_handler(request: Request, exc: TokenError) -> JSONResp
 api.include_router(ping.router)
 api.include_router(ready.router)
 api.include_router(login.router)
+api.include_router(token.router)
 api.include_router(users.router)
 api.include_router(authorize.router)

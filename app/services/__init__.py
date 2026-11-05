@@ -10,6 +10,7 @@ from .authorization_service import (
 )
 from .login_service import (
     LoginService,
+    TokenRenewalError,
     UnknownUserError,
     WrongPasswordError,
     create_access_token,
@@ -24,6 +25,7 @@ __all__ = [
     "InconsistentTokenError",
     "InvalidTokenError",
     "LoginService",
+    "TokenRenewalError",
     "UnknownUserError",
     "UserNotAuthorizedError",
     "UserNotFoundError",
