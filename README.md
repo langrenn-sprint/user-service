@@ -18,6 +18,14 @@ Example of usage:
 % curl -H "Authorization: Bearer $ACCESS"  http://localhost:8000/users
 ```
 
+A token is valid for `JWT_EXP_DELTA_SECONDS`. Renew a valid token before it expires to get a new one with full lifetime:
+
+```Zsh
+% curl -H "Authorization: Bearer $ACCESS" -X POST http://localhost:8000/token/renew
+```
+
+The user is read again on renewal, so a deleted user gets `401` and a changed role is put in the new token. The token's `auth_time` claim (when the user logged in with password) is kept, and renewal is refused with `401` when it is older than `JWT_MAX_SESSION_SECONDS` (default 86400, i.e. 24 hours). Expired, invalid or missing tokens also get `401`.
+
 ## Architecture
 
 Layers:
@@ -36,6 +44,7 @@ A minimal .env:
 ```Zsh
 JWT_SECRET=secret
 JWT_EXP_DELTA_SECONDS=3600
+JWT_MAX_SESSION_SECONDS=86400
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=passw123
 DB_USER=admin

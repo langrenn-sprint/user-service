@@ -6,6 +6,7 @@ services:
       - "8080:8000"
     environment:
       - JWT_SECRET=${JWT_SECRET}
+      - JWT_MAX_SESSION_SECONDS=${JWT_MAX_SESSION_SECONDS}
       - ADMIN_USERNAME=${ADMIN_USERNAME}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - DB_HOST=mongodb
