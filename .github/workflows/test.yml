@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+env:
+  IMAGE: ghcr.io/langrenn-sprint/user-service
+
 jobs:
   install-build-and-test:
     name: Install, build and test
@@ -25,10 +28,30 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: ${{ env.IMAGE }}:test
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Run linters, checks and tests
         run: |
           uv run poe release
         env:
+          IMAGE_PREBUILT: "1"
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
