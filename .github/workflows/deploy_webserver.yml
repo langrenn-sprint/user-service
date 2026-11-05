@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: langrenn-sprint/.github/.github/workflows/build-test-publish.yml@reusable-build-test-publish
+    uses: langrenn-sprint/.github/.github/workflows/build-test-publish.yml@main
     with:
       publish: true
     secrets:
