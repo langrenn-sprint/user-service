@@ -1,6 +1,7 @@
 """Conftest module."""
 
 import time
+from collections.abc import Generator
 from http import HTTPStatus
 from os import environ as env
 from pathlib import Path
@@ -10,6 +11,7 @@ import pytest
 import requests
 
 HOST_PORT = int(env.get("HOST_PORT", "8000"))
+LOG_FILE = "docker-compose-logs.txt"
 
 
 def is_responsive(url: str) -> bool:
@@ -26,15 +28,34 @@ def is_responsive(url: str) -> bool:
 
 
 @pytest.fixture(scope="session")
-def http_service(docker_ip: Any, docker_services: Any) -> Any:
-    """Ensure that HTTP service is up and responsive."""
+def http_service(
+    request: pytest.FixtureRequest, docker_ip: Any, docker_services: Any
+) -> Generator[str]:
+    """Ensure that HTTP service is up and responsive.
+
+    If any test failed, the container logs are written to LOG_FILE and to
+    the terminal (so they are also in the CI job log). This runs before
+    docker_services tears the containers down, as it depends on it.
+    """
     # `port_for` takes a container port and returns the corresponding host port
     port = docker_services.port_for("user-service", HOST_PORT)
     url = f"http://{docker_ip}:{port}"
     docker_services.wait_until_responsive(
         timeout=30.0, pause=0.1, check=lambda: is_responsive(url)
     )
-    return url
+    yield url
+
+    if request.session.testsfailed:
+        logs = docker_services._docker_compose.execute(  # noqa: SLF001
+            "logs --no-color --timestamps"
+        ).decode(errors="replace")
+        log_file = Path(str(request.config.rootpath)) / LOG_FILE
+        log_file.write_text(logs)
+        terminal = request.config.pluginmanager.get_plugin("terminalreporter")
+        if terminal:
+            terminal.write_sep("=", "docker compose logs")
+            terminal.write_line(logs)
+            terminal.write_line(f"Container logs written to {log_file}")
 
 
 @pytest.fixture(scope="session")
@@ -58,7 +79,9 @@ def docker_setup() -> list[str]:
 
 
 @pytest.fixture(scope="session")
-def docker_cleanup(pytestconfig: Any) -> Any:
-    """Override default location of docker-compose.yml file."""
-    _ = pytestconfig
-    return "stop"
+def docker_cleanup() -> str:
+    """Remove the containers, networks and anonymous volumes after the tests.
+
+    The container logs are kept in LOG_FILE if a test failed, see http_service.
+    """
+    return "down -v"
