@@ -12,7 +12,7 @@ jobs:
     if: github.event.pull_request.draft == false
     permissions:
       contents: read
-    uses: langrenn-sprint/.github/.github/workflows/build-test-publish.yml@reusable-build-test-publish
+    uses: langrenn-sprint/.github/.github/workflows/build-test-publish.yml@main
     secrets:
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
