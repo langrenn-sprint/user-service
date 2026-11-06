@@ -10,8 +10,9 @@ class Role(StrEnum):
     """Enum representing different valid roles."""
 
     ADMIN = "admin"
-    USER_ADMIN = "user-admin"
     EVENT_ADMIN = "event-admin"
+    RESULT_ADMIN = "result-admin"
+    CONTESTANT_ADMIN = "contestant-admin"
 
 
 class User(BaseModel):

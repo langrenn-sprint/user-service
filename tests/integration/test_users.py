@@ -720,3 +720,113 @@ async def test_delete_user_by_id_unauthorized(
 
     resp = client.delete(f"/users/{USER_ID}", headers=headers)
     assert resp.status_code == HTTPStatus.FORBIDDEN
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("role", ["event-admin", "result-admin", "contestant-admin"])
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("GET", "/users"),
+        ("POST", "/users"),
+        ("GET", f"/users/{USER_ID}"),
+        ("PUT", f"/users/{USER_ID}"),
+        ("DELETE", f"/users/{USER_ID}"),
+    ],
+)
+async def test_users_forbidden_for_other_roles_than_admin(
+    client: TestClient, mocker: MockFixture, role: str, method: str, path: str
+) -> None:
+    """Should return 403 Forbidden for all roles except admin."""
+    adapter_methods = [
+        mocker.patch(f"app.adapters.users_adapter.UsersAdapter.{name}")
+        for name in (
+            "get_all_users",
+            "get_user_by_id",
+            "get_user_by_username",
+            "create_user",
+            "update_user",
+            "delete_user",
+        )
+    ]
+    token = jwt.encode(
+        {"username": "someone", "role": role, "exp": 9999999999},
+        os.getenv("JWT_SECRET"),
+        "HS256",
+    )
+    request_body = {
+        "id": str(USER_ID),
+        "username": "user@example.com",
+        "password": "secret",
+        "role": "admin",
+    }
+
+    resp = client.request(
+        method,
+        path,
+        headers={"Authorization": f"Bearer {token}"},
+        json=request_body if method in ("POST", "PUT") else None,
+    )
+    assert resp.status_code == HTTPStatus.FORBIDDEN, resp.text
+    for adapter_method in adapter_methods:
+        adapter_method.assert_not_called()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "role", ["admin", "event-admin", "result-admin", "contestant-admin"]
+)
+async def test_create_user_with_each_role(
+    client: TestClient, mocker: MockFixture, token: str, role: str
+) -> None:
+    """Should return 201 Created for every role in the role model."""
+    mocker.patch(
+        "app.adapters.users_adapter.UsersAdapter.create_user",
+        return_value=USER_ID,
+    )
+    mocker.patch(
+        "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
+        return_value=None,
+    )
+    request_body = {"username": "user@example.com", "password": "secret", "role": role}
+
+    resp = client.post(
+        "/users", headers={"Authorization": f"Bearer {token}"}, json=request_body
+    )
+    assert resp.status_code == HTTPStatus.CREATED, resp.text
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("role", ["user-admin", "race-result", "race-office"])
+async def test_create_user_with_removed_role(
+    client: TestClient, mocker: MockFixture, token: str, role: str
+) -> None:
+    """Should return 422 Unprocessable Entity for roles that no longer exist."""
+    create_user = mocker.patch("app.adapters.users_adapter.UsersAdapter.create_user")
+    request_body = {"username": "user@example.com", "password": "secret", "role": role}
+
+    resp = client.post(
+        "/users", headers={"Authorization": f"Bearer {token}"}, json=request_body
+    )
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, resp.text
+    create_user.assert_not_called()
+
+
+@pytest.mark.integration
+async def test_openapi_shows_roles_for_users_operations(client: TestClient) -> None:
+    """Should list the allowed roles for each /users operation in OpenAPI."""
+    resp = client.get("/openapi.json")
+    assert resp.status_code == HTTPStatus.OK
+    paths = resp.json()["paths"]
+
+    for path in ("/users", "/users/{user_id}"):
+        for operation in paths[path].values():
+            assert operation["security"] == [{"HTTPBearer": ["admin"]}]
+            assert "**Roles:** `admin`" in operation["description"]
+            assert "401" in operation["responses"]
+            assert "403" in operation["responses"]
+    # Operations without a role check are not changed:
+    assert "security" not in paths["/ping"]["get"]
+    assert "403" not in paths["/login"]["post"]["responses"]
+    # The schema is generated once, so the roles are not added twice:
+    assert client.get("/openapi.json").json() == resp.json()

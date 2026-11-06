@@ -95,7 +95,7 @@ async def mock_inconsistent_user() -> User:
         id=USER_ID,
         username="nonprivileged@example.com",
         password=SecretStr("password"),
-        role=Role.USER_ADMIN,
+        role=Role.RESULT_ADMIN,
     )
 
 
