@@ -7,7 +7,7 @@ from http import HTTPStatus
 from typing import Annotated, Any
 
 import jwt
-from fastapi import Depends, HTTPException, Security
+from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.security import (
     HTTPAuthorizationCredentials,
     HTTPBearer,
@@ -164,3 +164,56 @@ class RoleChecker:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN, detail="Operation forbidden"
         )
+
+
+def require_roles(*roles: Role) -> Any:
+    """Dependency that allows only users with one of the given roles.
+
+    The roles are also given as scopes on the security requirement, so the
+    OpenAPI document lists them for the bearer scheme (allowed for non-OAuth2
+    schemes in OpenAPI 3.1). See document_roles for the description text.
+    """
+    return Security(RoleChecker(list(roles)), scopes=[role.value for role in roles])
+
+
+def document_roles(api: FastAPI) -> None:
+    """Show the allowed roles for each operation in the OpenAPI document.
+
+    For every operation protected by require_roles, the roles are added to
+    the description, and the 401 and 403 responses are documented.
+    """
+    generate_openapi = api.openapi
+
+    def openapi() -> dict[str, Any]:
+        if api.openapi_schema:
+            return api.openapi_schema
+        schema = generate_openapi()
+        for path_item in schema.get("paths", {}).values():
+            for operation in path_item.values():
+                roles = list(
+                    dict.fromkeys(
+                        role
+                        for requirement in operation.get("security", [])
+                        for scope in requirement.values()
+                        for role in scope
+                    )
+                )
+                if not roles:
+                    continue
+                roles_text = "**Roles:** " + ", ".join(f"`{r}`" for r in roles)
+                description = operation.get("description")
+                operation["description"] = (
+                    f"{description}\n\n{roles_text}" if description else roles_text
+                )
+                responses = operation.setdefault("responses", {})
+                responses.setdefault("401", {"description": "Missing or invalid token"})
+                responses.setdefault(
+                    "403",
+                    {
+                        "description": "Operation forbidden: requires one of the roles "
+                        + ", ".join(roles)
+                    },
+                )
+        return schema
+
+    api.openapi = openapi  # ty: ignore[invalid-assignment]

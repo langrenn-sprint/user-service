@@ -5,13 +5,11 @@ import os
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
 from app.adapters import UsersAdapter
-from app.authorization import (
-    RoleChecker,
-)
+from app.authorization import require_roles
 from app.models import Role, User
 from app.services import (
     IllegalValueError,
@@ -28,17 +26,13 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get(
-    "/users", dependencies=[Depends(RoleChecker([Role.ADMIN, Role.USER_ADMIN]))]
-)
+@router.get("/users", dependencies=[require_roles(Role.ADMIN)])
 async def get_users() -> list[User]:
     """Get route function."""
     return await UsersAdapter.get_all_users()
 
 
-@router.post(
-    "/users", dependencies=[Depends(RoleChecker([Role.ADMIN, Role.USER_ADMIN]))]
-)
+@router.post("/users", dependencies=[require_roles(Role.ADMIN)])
 async def post(user: User) -> Response:
     """Post route function."""
     try:
@@ -55,7 +49,7 @@ async def post(user: User) -> Response:
 
 @router.get(
     "/users/{user_id}",
-    dependencies=[Depends(RoleChecker([Role.ADMIN, Role.USER_ADMIN]))],
+    dependencies=[require_roles(Role.ADMIN)],
 )
 async def get_user_by_id(user_id: UUID) -> User:
     """Get route function."""
@@ -69,7 +63,7 @@ async def get_user_by_id(user_id: UUID) -> User:
 
 @router.put(
     "/users/{user_id}",
-    dependencies=[Depends(RoleChecker([Role.ADMIN, Role.USER_ADMIN]))],
+    dependencies=[require_roles(Role.ADMIN)],
 )
 async def put(user_id: UUID, user: User) -> Response:
     """Put route function."""
@@ -85,7 +79,7 @@ async def put(user_id: UUID, user: User) -> Response:
 
 @router.delete(
     "/users/{user_id}",
-    dependencies=[Depends(RoleChecker([Role.ADMIN, Role.USER_ADMIN]))],
+    dependencies=[require_roles(Role.ADMIN)],
 )
 async def delete(user_id: UUID) -> Response:
     """Delete route function."""

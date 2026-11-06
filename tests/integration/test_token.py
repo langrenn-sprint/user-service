@@ -54,7 +54,7 @@ def renew(client: TestClient, token: str) -> Any:
 async def test_renew_token(client: TestClient, mocker: MockFixture) -> None:
     """Should return 200 OK and a new token with the role from the db."""
     user = User(
-        id=ID, username="test", password=SecretStr("hash"), role=Role.USER_ADMIN
+        id=ID, username="test", password=SecretStr("hash"), role=Role.CONTESTANT_ADMIN
     )
     mocker.patch(
         "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
@@ -68,7 +68,7 @@ async def test_renew_token(client: TestClient, mocker: MockFixture) -> None:
     claims = decode(resp.json()["token"])
     assert claims["username"] == "test"
     # The role is read again, so a changed role is put in the new token:
-    assert claims["role"] == Role.USER_ADMIN.value
+    assert claims["role"] == Role.CONTESTANT_ADMIN.value
     # auth_time is kept, the lifetime is full again:
     assert claims["auth_time"] == auth_time
     assert claims["exp"] >= int(time.time()) + 60 - 1

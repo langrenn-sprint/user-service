@@ -14,6 +14,7 @@ from .authorization import (
     TokenError,
     TokenMissingError,
     TokenValidationError,
+    document_roles,
 )
 from .routers import authorize, login, ping, ready, token, users
 from .services import UsersService
@@ -157,3 +158,4 @@ api.include_router(login.router)
 api.include_router(token.router)
 api.include_router(users.router)
 api.include_router(authorize.router)
+document_roles(api)
