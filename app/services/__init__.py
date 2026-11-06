@@ -12,10 +12,18 @@ from .login_service import (
     LoginService,
     TokenRenewalError,
     UnknownUserError,
+    UserNotActivatedError,
     WrongPasswordError,
     create_access_token,
 )
-from .users_service import IllegalValueError, UserNotFoundError, UsersService
+from .users_service import (
+    IllegalValueError,
+    InvalidActivationCodeError,
+    PasswordTooShortError,
+    UserNotFoundError,
+    UsersService,
+    user_info,
+)
 
 __all__ = [
     "AuthorizationError",
@@ -23,13 +31,17 @@ __all__ = [
     "IllegalValueError",
     "IncompleteTokenError",
     "InconsistentTokenError",
+    "InvalidActivationCodeError",
     "InvalidTokenError",
     "LoginService",
+    "PasswordTooShortError",
     "TokenRenewalError",
     "UnknownUserError",
+    "UserNotActivatedError",
     "UserNotAuthorizedError",
     "UserNotFoundError",
     "UsersService",
     "WrongPasswordError",
     "create_access_token",
+    "user_info",
 ]

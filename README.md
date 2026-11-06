@@ -26,6 +26,35 @@ A token is valid for `JWT_EXP_DELTA_SECONDS`. Renew a valid token before it expi
 
 The user is read again on renewal, so a deleted user gets `401` and a changed role is put in the new token. The token's `auth_time` claim (when the user logged in with password) is kept, and renewal is refused with `401` when it is older than `JWT_MAX_SESSION_SECONDS` (default 86400, i.e. 24 hours). Expired, invalid or missing tokens also get `401`.
 
+## Users set their own password
+
+Admin can create a user without password. The response has a one-time activation code, which admin passes on to the user, e.g. as a link in event-service-gui:
+
+```Zsh
+% curl -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS" \
+  -X POST \
+  --data '{"username":"ola@example.com","role":"event-admin"}' \
+  http://localhost:8000/users
+{"user_id":"…","code":"…","expires":"…"}
+```
+
+The user sets the password with the code. This needs no token, and the code can only be used once:
+
+```Zsh
+% curl -H "Content-Type: application/json" \
+  -X POST \
+  --data '{"code":"…","password":"at least 10 characters"}' \
+  http://localhost:8000/activate
+```
+
+- The code is valid for `ACTIVATION_CODE_TTL_HOURS` (default 48). Only a hash of it is stored.
+- An unknown, used or expired code gives `400`, and a password shorter than 10 characters gives `422`. The minimum length also applies when admin sets a password.
+- A user without password cannot log in: `POST /login` gives `403`.
+- `POST /users/{id}/activation` (admin) gives the user a new code, e.g. to reset a forgotten password. Earlier codes stop working, and a password the user has keeps working until the new one is set.
+- `GET /users` shows whether each user is `activated`, and when a pending code expires. It never shows passwords or codes.
+- Admin can still create a user with a password, as before. Existing users keep their passwords.
+
 ## Architecture
 
 Layers:
@@ -51,6 +80,8 @@ DB_USER=admin
 DB_PASSWORD=admin
 LOGGING_LEVEL=DEBUG
 ```
+
+Optional: `ACTIVATION_CODE_TTL_HOURS` (default 48), how long an activation code is valid.
 
 ## Requirement for development
 

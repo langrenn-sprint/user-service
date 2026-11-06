@@ -50,6 +50,14 @@ class UnknownUserError(Exception):
         super().__init__(message)
 
 
+class UserNotActivatedError(Exception):
+    """The user has no password yet, and must use the activation link."""
+
+    def __init__(self, message: str) -> None:
+        """Initialize the error."""
+        super().__init__(message)
+
+
 class TokenRenewalError(Exception):
     """Class representing custom exception for token renewal."""
 
@@ -76,6 +84,7 @@ class LoginService:
         Raises:
             UnknownUserError: If the user is unknown to us
             WrongPasswordError: If the password does not match our records
+            UserNotActivatedError: If the user has not set a password yet
 
         """
         # First we see if it is the admin trying to log in.
@@ -93,6 +102,10 @@ class LoginService:
             await verify_dummy_password(password)
             msg = f"Username {username} not found."
             raise UnknownUserError(msg) from None
+        if user.password is None:
+            await verify_dummy_password(password)
+            msg = f"User {username} is not activated."
+            raise UserNotActivatedError(msg) from None
         password_hash = user.password.get_secret_value()
         if not await verify_password(password_hash, password):
             msg = f"Password for {username} did not match."

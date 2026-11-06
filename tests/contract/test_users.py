@@ -13,6 +13,7 @@ from httpx import AsyncClient
 from pymongo import AsyncMongoClient
 from pytest_mock import MockFixture
 
+from app.adapters import UsersAdapter
 from app.services.passwords import PASSWORD_HASH_MONGO_REGEX
 
 DB_NAME = os.getenv("DB_NAME")
@@ -67,7 +68,7 @@ async def test_create_user(http_service: Any, token: MockFixture) -> None:
     }
     request_body = {
         "username": "user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
 
@@ -87,7 +88,7 @@ async def test_login_created_user_password_is_hashed(
     async with AsyncClient() as client:
         response = await client.post(
             f"{http_service}/login",
-            json={"username": "user@example.com", "password": "secret"},
+            json={"username": "user@example.com", "password": "secret-1234"},
         )
     assert response.status_code == HTTPStatus.OK, response.text
 
@@ -170,7 +171,7 @@ async def test_update_user(http_service: Any, token: MockFixture) -> None:
             "id": _id,
             "username": "user@example.com updated",
             "role": "admin",
-            "password": "newsecret",
+            "password": "newsecret-1234",
         }
         response = await client.put(url, headers=headers, json=request_body)
 
@@ -185,9 +186,11 @@ async def test_login_with_updated_password(http_service: Any) -> None:
     username = "user@example.com updated"
     async with AsyncClient() as client:
         new = await client.post(
-            url, json={"username": username, "password": "newsecret"}
+            url, json={"username": username, "password": "newsecret-1234"}
         )
-        old = await client.post(url, json={"username": username, "password": "secret"})
+        old = await client.post(
+            url, json={"username": username, "password": "secret-1234"}
+        )
     assert new.status_code == HTTPStatus.OK, new.text
     assert old.status_code == HTTPStatus.UNAUTHORIZED
 
@@ -217,29 +220,39 @@ async def test_delete_user(http_service: Any, token: MockFixture) -> None:
 async def test_plaintext_password_query_in_mongodb(
     http_service: Any, db_address: dict[str, Any]
 ) -> None:
-    """Should select plain-text passwords, also those resembling a hash, in MongoDB."""
+    """Should select plain-text passwords, also those resembling a hash.
+
+    Users without password (not activated) have nothing to hash, and must not
+    be selected: hashing None would stop user-service from starting.
+    """
     _ = http_service  # starts the services, including MongoDB
     password_hash = PasswordHasher().hash("secret")
-    mongo = AsyncMongoClient(**db_address, username=DB_USER, password=DB_PASSWORD)
-    collection = mongo[f"{DB_NAME}"].password_regex_test
+    mongo = AsyncMongoClient(
+        **db_address,
+        username=DB_USER,
+        password=DB_PASSWORD,
+        uuidRepresentation="standard",
+    )
+    database = mongo["password_regex_test"]
     try:
-        await collection.insert_many(
+        await database.users_collection.insert_many(
             [
-                {"password": password_hash},
-                {"password": "secret"},
-                {"password": "$argon2-my-password"},
-                {"password": password_hash + "\n"},
+                {"id": 1, "password": password_hash},
+                {"id": 2, "password": "secret"},
+                {"id": 3, "password": "$argon2-my-password"},
+                {"id": 4, "password": password_hash + "\n"},
+                {"id": 5, "password": None},
+                {"id": 6},
             ]
         )
-        cursor = collection.find(
-            {"password": {"$not": {"$regex": PASSWORD_HASH_MONGO_REGEX}}},
-            {"_id": 0, "password": 1},
+        await UsersAdapter.init(database)
+        found = await UsersAdapter.get_users_with_plaintext_password(
+            PASSWORD_HASH_MONGO_REGEX
         )
-        found = [doc["password"] for doc in await cursor.to_list(length=None)]
     finally:
-        await collection.drop()
+        await mongo.drop_database("password_regex_test")
         await mongo.close()
 
-    assert sorted(found) == sorted(
+    assert sorted(user["password"] for user in found) == sorted(
         ["secret", "$argon2-my-password", password_hash + "\n"]
     )

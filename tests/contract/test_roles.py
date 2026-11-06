@@ -165,7 +165,11 @@ async def test_removed_roles_cannot_be_given(
         response = await client.post(
             f"{http_service}/users",
             headers=_auth(admin_token),
-            json={"username": f"{role}@example.com", "password": "x", "role": role},
+            json={
+                "username": f"{role}@example.com",
+                "password": PASSWORD,
+                "role": role,
+            },
         )
     _check(response, HTTPStatus.UNPROCESSABLE_ENTITY, f"create with role {role}")
 

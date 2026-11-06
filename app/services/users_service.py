@@ -1,15 +1,22 @@
 """Module for users service."""
 
 import logging
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from pydantic import SecretStr
 
 from app.adapters import UsersAdapter
-from app.models import User
+from app.models import Activation, User, UserInfo
 
-from .passwords import PASSWORD_HASH_MONGO_REGEX, hash_password, is_password_hash
+from .activation import hash_activation_code, new_activation_code
+from .passwords import (
+    MIN_PASSWORD_LENGTH,
+    PASSWORD_HASH_MONGO_REGEX,
+    hash_password,
+    is_password_hash,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,35 +39,103 @@ class UserNotFoundError(Exception):
         super().__init__(message)
 
 
+class PasswordTooShortError(Exception):
+    """The password is shorter than MIN_PASSWORD_LENGTH."""
+
+    def __init__(self) -> None:
+        """Initialize the error."""
+        super().__init__(
+            f"Password must have at least {MIN_PASSWORD_LENGTH} characters."
+        )
+
+
+class InvalidActivationCodeError(Exception):
+    """The activation code is unknown, used or expired.
+
+    The same error for all three, so that the response does not reveal which
+    codes exist.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the error."""
+        super().__init__("The activation code is invalid or has expired.")
+
+
+def _password(user: User) -> str | None:
+    """Return the user's password, or None if it is missing or empty."""
+    if user.password is None:
+        return None
+    return user.password.get_secret_value() or None
+
+
+def _check_length(password: str) -> None:
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise PasswordTooShortError
+
+
+def user_info(document: dict) -> UserInfo:
+    """Return what is shown about a stored user."""
+    expires = document.get("activation_expires")
+    if expires is not None and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=UTC)  # MongoDB stores UTC, naive
+    return UserInfo(
+        id=document["id"],
+        username=document["username"],
+        role=document["role"],
+        activated=bool(document.get("password")),
+        activation_expires=expires,
+    )
+
+
 class UsersService:
     """Class representing a service for users."""
 
     @classmethod
-    async def create_user(cls: Any, user: User) -> UUID | None:
+    async def create_user(
+        cls: Any, user: User
+    ) -> tuple[UUID | None, Activation | None]:
         """Create user function.
+
+        A user created without password gets an activation code, so that the
+        user can set the password.
 
         Args:
             user (User): a user instanse to be created
 
         Returns:
-            Optional[str]: The id of the created user. None otherwise.
+            The id of the created user, None otherwise; and the activation
+            code for a user without password.
 
         Raises:
             IllegalValueError: input object has illegal values
+            PasswordTooShortError: the password is too short
 
         """
         # Validation:
         if user.username == "admin":
             msg = 'Cannot create user with username "admin".'
             raise IllegalValueError(msg) from None
-        # Store a hash of the password, never the password itself:
-        user.password = SecretStr(await hash_password(user.password.get_secret_value()))
+        password = _password(user)
+        activation = None
+        stored_activation = None
+        if password is None:
+            user.password = None
+            code, code_hash, expires = new_activation_code()
+            activation = Activation(user_id=user.id, code=code, expires=expires)
+            stored_activation = {
+                "activation_code_hash": code_hash,
+                "activation_expires": expires,
+            }
+        else:
+            _check_length(password)
+            # Store a hash of the password, never the password itself:
+            user.password = SecretStr(await hash_password(password))
         # insert new user
-        result = await UsersAdapter.create_user(user)
+        result = await UsersAdapter.create_user(user, stored_activation)
         logger.debug("inserted user with id: %s", user.id)
         if result:
-            return user.id
-        return None
+            return user.id, activation
+        return None, None
 
     @classmethod
     async def update_user(cls: Any, user_id: UUID, user: User) -> UUID | None:
@@ -76,13 +151,51 @@ class UsersService:
             if user.id != old_user.id:
                 msg = "Cannot change id for user."
                 raise IllegalValueError(msg) from None
-            # Store a hash of the password, never the password itself:
-            user.password = SecretStr(
-                await hash_password(user.password.get_secret_value())
-            )
+            password = _password(user)
+            if password is None:
+                user.password = None  # keep the stored password
+            else:
+                _check_length(password)
+                # Store a hash of the password, never the password itself:
+                user.password = SecretStr(await hash_password(password))
             return await UsersAdapter.update_user(user_id, user)
         msg = f"User with id {user_id} not found."
         raise UserNotFoundError(msg) from None
+
+    @classmethod
+    async def create_activation(cls: Any, user_id: UUID) -> Activation:
+        """Give the user a new activation code, e.g. to reset the password.
+
+        Earlier codes stop working. A password the user has keeps working
+        until the user sets a new one with the code.
+
+        Raises:
+            UserNotFoundError: the user does not exist
+
+        """
+        code, code_hash, expires = new_activation_code()
+        if not await UsersAdapter.set_activation(user_id, code_hash, expires):
+            msg = f"User with id {user_id} not found."
+            raise UserNotFoundError(msg) from None
+        return Activation(user_id=user_id, code=code, expires=expires)
+
+    @classmethod
+    async def activate(cls: Any, code: str, password: str) -> None:
+        """Set the password of the user with the activation code.
+
+        Raises:
+            PasswordTooShortError: the password is too short
+            InvalidActivationCodeError: the code is unknown, used or expired
+
+        """
+        _check_length(password)
+        # Hash the password first, so that unknown and known codes take the
+        # same time:
+        password_hash = await hash_password(password)
+        if not await UsersAdapter.activate(
+            hash_activation_code(code), datetime.now(UTC), password_hash
+        ):
+            raise InvalidActivationCodeError
 
     @classmethod
     async def hash_plaintext_passwords(cls: Any) -> int:
