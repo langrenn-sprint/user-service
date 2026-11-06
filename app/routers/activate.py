@@ -34,7 +34,9 @@ async def activate(request: ActivationRequest) -> Response:
     The code can only be used once.
     """
     try:
-        await UsersService.activate(request.code, request.password.get_secret_value())
+        await UsersService.activate(
+            request.code, request.password.get_secret_value(), request.username
+        )
     except PasswordTooShortError as e:
         raise HTTPException(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=str(e)

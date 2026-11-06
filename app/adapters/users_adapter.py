@@ -105,7 +105,11 @@ class UsersAdapter:
 
     @classmethod
     async def activate(
-        cls: Any, code_hash: str, now: datetime, password_hash: str
+        cls: Any,
+        code_hash: str,
+        now: datetime,
+        password_hash: str,
+        username: str | None = None,
     ) -> bool:
         """Set the password of the user with this unexpired code, and remove the code.
 
@@ -115,8 +119,14 @@ class UsersAdapter:
             bool: True if a user had the code and it had not expired.
 
         """
+        query: dict[str, Any] = {
+            "activation_code_hash": code_hash,
+            "activation_expires": {"$gt": now},
+        }
+        if username is not None:
+            query["username"] = username
         result = await cls.database.users_collection.update_one(
-            {"activation_code_hash": code_hash, "activation_expires": {"$gt": now}},
+            query,
             {
                 "$set": {"password": password_hash},
                 "$unset": {"activation_code_hash": "", "activation_expires": ""},

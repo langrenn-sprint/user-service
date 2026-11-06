@@ -59,3 +59,10 @@ class ActivationRequest(BaseModel):
 
     code: str
     password: SecretStr
+    username: str | None = Field(
+        default=None,
+        description=(
+            "The username the code was given to, if known. If given, it must "
+            "match, so the browser saves the password for the right user."
+        ),
+    )

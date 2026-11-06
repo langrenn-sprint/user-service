@@ -254,9 +254,10 @@ async def test_delete_user_by_id(
     client: TestClient, mocker: MockFixture, token: MockFixture, mock_user: User
 ) -> None:
     """Should return No Content."""
+    other_user = mock_user.model_copy(update={"username": "other@example.com"})
     mocker.patch(
         "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        return_value=mock_user,
+        return_value=other_user,
     )
     mocker.patch(
         "app.adapters.users_adapter.UsersAdapter.delete_user",

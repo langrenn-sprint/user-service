@@ -53,7 +53,10 @@ The user sets the password with the code. This needs no token, and the code can 
 - A user without password cannot log in: `POST /login` gives `403`.
 - `POST /users/{id}/activation` (admin) gives the user a new code, e.g. to reset a forgotten password. Earlier codes stop working, and a password the user has keeps working until the new one is set.
 - `GET /users` shows whether each user is `activated`, and when a pending code expires. It never shows passwords or codes.
+- `POST /activate` may also have `"username"`. Then the code only works if it was given to that user. event-service-gui sends it, so the browser can save the new password for the right username.
 - Admin can still create a user with a password, as before. Existing users keep their passwords.
+
+A user cannot delete the user they are logged in as: `DELETE /users/{id}` gives `409`.
 
 ## Architecture
 

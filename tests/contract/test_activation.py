@@ -214,3 +214,50 @@ async def test_expired_code(
         )
 
     assert status == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.contract
+@pytest.mark.asyncio
+async def test_activate_with_username(http_service: str, admin: dict) -> None:
+    """With a username, the code only works for the user it was given to."""
+    username = f"navn-{secrets.token_hex(4)}@example.com"
+    password = secrets.token_urlsafe(16)
+    async with AsyncClient() as client:
+        code = (await create_user(client, http_service, admin, username)).json()["code"]
+        wrong = await client.post(
+            f"{http_service}/activate",
+            json={"code": code, "password": password, "username": "en-annen"},
+        )
+        right = await client.post(
+            f"{http_service}/activate",
+            json={"code": code, "password": password, "username": username},
+        )
+
+    assert wrong.status_code == HTTPStatus.BAD_REQUEST, wrong.text
+    assert right.status_code == HTTPStatus.NO_CONTENT, right.text
+
+
+@pytest.mark.contract
+@pytest.mark.asyncio
+async def test_admin_cannot_delete_self(http_service: str, admin: dict) -> None:
+    """An admin user cannot delete the user they are logged in as."""
+    username = f"admin-{secrets.token_hex(4)}@example.com"
+    password = secrets.token_urlsafe(16)
+    async with AsyncClient() as client:
+        response = await client.post(
+            f"{http_service}/users",
+            headers=admin,
+            json={"username": username, "role": "admin", "password": password},
+        )
+        assert response.status_code == HTTPStatus.CREATED, response.text
+        user_url = f"{http_service}{response.headers['Location']}"
+        login = await client.post(
+            f"{http_service}/login", json={"username": username, "password": password}
+        )
+        own = {"Authorization": f"Bearer {login.json()['token']}"}
+
+        refused = await client.delete(user_url, headers=own)
+        deleted = await client.delete(user_url, headers=admin)
+
+    assert refused.status_code == HTTPStatus.CONFLICT, refused.text
+    assert deleted.status_code == HTTPStatus.NO_CONTENT, deleted.text

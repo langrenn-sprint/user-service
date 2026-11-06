@@ -49,6 +49,14 @@ class PasswordTooShortError(Exception):
         )
 
 
+class CannotDeleteSelfError(Exception):
+    """A user tried to delete the user they are logged in as."""
+
+    def __init__(self) -> None:
+        """Initialize the error."""
+        super().__init__("You cannot delete the user you are logged in as.")
+
+
 class InvalidActivationCodeError(Exception):
     """The activation code is unknown, used or expired.
 
@@ -180,8 +188,12 @@ class UsersService:
         return Activation(user_id=user_id, code=code, expires=expires)
 
     @classmethod
-    async def activate(cls: Any, code: str, password: str) -> None:
+    async def activate(
+        cls: Any, code: str, password: str, username: str | None = None
+    ) -> None:
         """Set the password of the user with the activation code.
+
+        If username is given, it must be the user the code was given to.
 
         Raises:
             PasswordTooShortError: the password is too short
@@ -193,7 +205,7 @@ class UsersService:
         # same time:
         password_hash = await hash_password(password)
         if not await UsersAdapter.activate(
-            hash_activation_code(code), datetime.now(UTC), password_hash
+            hash_activation_code(code), datetime.now(UTC), password_hash, username
         ):
             raise InvalidActivationCodeError
 
@@ -225,10 +237,18 @@ class UsersService:
         return count
 
     @classmethod
-    async def delete_user(cls: Any, user_id: UUID) -> None:
-        """Delete user."""
+    async def delete_user(cls: Any, user_id: UUID, current_username: str) -> None:
+        """Delete user.
+
+        Raises:
+            UserNotFoundError: the user does not exist
+            CannotDeleteSelfError: the user is the one logged in
+
+        """
         # get old document
         user = await UsersAdapter.get_user_by_id(user_id)
+        if user and user.username == current_username:
+            raise CannotDeleteSelfError
         # delete the document if found:
         if user:
             await UsersAdapter.delete_user(user.id)

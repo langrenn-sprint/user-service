@@ -17,6 +17,7 @@ from .login_service import (
     create_access_token,
 )
 from .users_service import (
+    CannotDeleteSelfError,
     IllegalValueError,
     InvalidActivationCodeError,
     PasswordTooShortError,
@@ -28,6 +29,7 @@ from .users_service import (
 __all__ = [
     "AuthorizationError",
     "AuthorizationService",
+    "CannotDeleteSelfError",
     "IllegalValueError",
     "IncompleteTokenError",
     "InconsistentTokenError",
