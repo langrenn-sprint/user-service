@@ -7,10 +7,10 @@ from http import HTTPStatus
 from typing import Any
 
 import jwt
-import motor.motor_asyncio
 import pytest
 from argon2 import PasswordHasher
 from httpx import AsyncClient
+from pymongo import AsyncMongoClient
 from pytest_mock import MockFixture
 
 from app.services.passwords import PASSWORD_HASH_MONGO_REGEX
@@ -38,9 +38,7 @@ def token() -> str:
 @pytest.fixture(scope="module")
 async def clear_db(db_address: dict[str, Any]) -> AsyncGenerator:
     """Delete all events before we start."""
-    mongo = motor.motor_asyncio.AsyncIOMotorClient(
-        **db_address, username=DB_USER, password=DB_PASSWORD
-    )
+    mongo = AsyncMongoClient(**db_address, username=DB_USER, password=DB_PASSWORD)
     try:
         await mongo.drop_database(f"{DB_NAME}")
     except Exception:
@@ -54,6 +52,8 @@ async def clear_db(db_address: dict[str, Any]) -> AsyncGenerator:
     except Exception:
         logger.exception("Failed to drop database %s", DB_NAME)
         raise
+    finally:
+        await mongo.close()
 
 
 @pytest.mark.contract
@@ -91,15 +91,13 @@ async def test_login_created_user_password_is_hashed(
         )
     assert response.status_code == HTTPStatus.OK, response.text
 
-    mongo = motor.motor_asyncio.AsyncIOMotorClient(
-        **db_address, username=DB_USER, password=DB_PASSWORD
-    )
+    mongo = AsyncMongoClient(**db_address, username=DB_USER, password=DB_PASSWORD)
     try:
         user = await mongo[f"{DB_NAME}"].users_collection.find_one(
             {"username": "user@example.com"}
         )
     finally:
-        mongo.close()
+        await mongo.close()
     assert user
     assert user["password"].startswith("$argon2id$")
     assert "secret" not in user["password"]
@@ -222,9 +220,7 @@ async def test_plaintext_password_query_in_mongodb(
     """Should select plain-text passwords, also those resembling a hash, in MongoDB."""
     _ = http_service  # starts the services, including MongoDB
     password_hash = PasswordHasher().hash("secret")
-    mongo = motor.motor_asyncio.AsyncIOMotorClient(
-        **db_address, username=DB_USER, password=DB_PASSWORD
-    )
+    mongo = AsyncMongoClient(**db_address, username=DB_USER, password=DB_PASSWORD)
     collection = mongo[f"{DB_NAME}"].password_regex_test
     try:
         await collection.insert_many(
@@ -242,7 +238,7 @@ async def test_plaintext_password_query_in_mongodb(
         found = [doc["password"] for doc in await cursor.to_list(length=None)]
     finally:
         await collection.drop()
-        mongo.close()
+        await mongo.close()
 
     assert sorted(found) == sorted(
         ["secret", "$argon2-my-password", password_hash + "\n"]

@@ -15,9 +15,9 @@ from http import HTTPStatus
 from typing import Any
 
 import jwt
-import motor.motor_asyncio
 import pytest
 from httpx import AsyncClient, Response
+from pymongo import AsyncMongoClient
 
 from tests.role_model import (
     ADMIN,
@@ -75,12 +75,11 @@ async def _create_user(
 @pytest.fixture(scope="module", autouse=True)
 async def clear_db(db_address: dict[str, Any]) -> AsyncGenerator:
     """Clear db before and after tests."""
-    mongo = motor.motor_asyncio.AsyncIOMotorClient(
-        **db_address, username=DB_USER, password=DB_PASSWORD
-    )
+    mongo = AsyncMongoClient(**db_address, username=DB_USER, password=DB_PASSWORD)
     await mongo.drop_database(DB_NAME)
     yield
     await mongo.drop_database(DB_NAME)
+    await mongo.close()
 
 
 @pytest.fixture(scope="module")
