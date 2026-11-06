@@ -16,7 +16,7 @@ from .authorization import (
     TokenValidationError,
     document_roles,
 )
-from .routers import activate, authorize, login, ping, ready, token, users
+from .routers import activate, login, ping, ready, token, users
 from .services import UsersService
 
 LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO")
@@ -158,5 +158,4 @@ api.include_router(login.router)
 api.include_router(token.router)
 api.include_router(users.router)
 api.include_router(activate.router)
-api.include_router(authorize.router)
 document_roles(api)

@@ -1,7 +1,7 @@
 """The role model for user-service, used by the contract tests.
 
 See langrenn-sprint/event-service-gui#215. Only admin may read and change
-users. Login, token renewal and authorize are open to every user.
+users. Login, token renewal and activation are open to every user.
 """
 
 ADMIN = "admin"

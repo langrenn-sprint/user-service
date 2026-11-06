@@ -1,13 +1,5 @@
 """Package for all services."""
 
-from .authorization_service import (
-    AuthorizationError,
-    AuthorizationService,
-    IncompleteTokenError,
-    InconsistentTokenError,
-    InvalidTokenError,
-    UserNotAuthorizedError,
-)
 from .login_service import (
     LoginService,
     TokenRenewalError,
@@ -27,20 +19,14 @@ from .users_service import (
 )
 
 __all__ = [
-    "AuthorizationError",
-    "AuthorizationService",
     "CannotDeleteSelfError",
     "IllegalValueError",
-    "IncompleteTokenError",
-    "InconsistentTokenError",
     "InvalidActivationCodeError",
-    "InvalidTokenError",
     "LoginService",
     "PasswordTooShortError",
     "TokenRenewalError",
     "UnknownUserError",
     "UserNotActivatedError",
-    "UserNotAuthorizedError",
     "UserNotFoundError",
     "UsersService",
     "WrongPasswordError",
