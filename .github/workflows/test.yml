@@ -17,17 +17,3 @@ jobs:
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-
-  debug-mongodb:
-    runs-on: ubuntu-latest
-    steps:
-      - run: uname -a; docker version --format '{{.Server.Version}}'; cat /proc/sys/vm/max_map_count; cat /sys/kernel/mm/transparent_hugepage/enabled
-      - run: |
-          for img in mongo:8.0-noble mongo:7-jammy mongo:8.2-noble mongo:latest; do
-            echo "=== $img"
-            docker run -d --name mongotest -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=admin $img
-            sleep 15
-            docker inspect mongotest --format 'status={{.State.Status}} exit={{.State.ExitCode}}'
-            docker logs mongotest 2>&1 | grep -v '"c":"NETWORK"\|"c":"ACCESS"' | tail -40
-            docker rm -f mongotest >/dev/null
-          done
