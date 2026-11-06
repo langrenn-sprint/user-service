@@ -196,8 +196,9 @@ async def test_activate(client: TestClient, mocker: MockFixture) -> None:
     resp = client.post("/activate", json={"code": "kode", "password": "a" * 10})
 
     assert resp.status_code == HTTPStatus.NO_CONTENT, resp.text
-    code_hash, now, password_hash = activate.await_args_list[0].args
+    code_hash, now, password_hash, username = activate.await_args_list[0].args
     assert code_hash == hash_activation_code("kode")
+    assert username is None
     assert abs(now - datetime.now(UTC)) < timedelta(seconds=5)
     assert await verify_password(password_hash, "a" * 10)
 
@@ -275,3 +276,41 @@ def test_list_users_shows_activation_status(
             "activation_expires": "2026-11-08T12:00:00Z",
         }
     ]
+
+
+@pytest.mark.integration
+def test_activate_with_username(client: TestClient, mocker: MockFixture) -> None:
+    """Should pass the username on, so only the user with the code matches."""
+    activate = mocker.patch(f"{ADAPTER}.activate", return_value=True)
+
+    resp = client.post(
+        "/activate",
+        json={"code": "kode", "password": "a" * 10, "username": "ny@example.com"},
+    )
+
+    assert resp.status_code == HTTPStatus.NO_CONTENT, resp.text
+    assert activate.await_args_list[0].args[3] == "ny@example.com"
+
+
+# --- Deleting yourself -----------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_cannot_delete_yourself(client: TestClient, mocker: MockFixture) -> None:
+    """Should return 409 when admin deletes the user they are logged in as."""
+    me = User(id=USER_ID, username="admin@example.com", role=Role.ADMIN)
+    mocker.patch(f"{ADAPTER}.get_user_by_id", return_value=me)
+    delete_user = mocker.patch(f"{ADAPTER}.delete_user")
+    token = jwt.encode(
+        {"username": "admin@example.com", "role": "admin", "exp": 9999999999},
+        os.getenv("JWT_SECRET"),
+        "HS256",
+    )
+
+    resp = client.delete(
+        f"/users/{USER_ID}", headers={"Authorization": f"Bearer {token}"}
+    )
+
+    assert resp.status_code == HTTPStatus.CONFLICT, resp.text
+    assert resp.json()["detail"] == "You cannot delete the user you are logged in as."
+    delete_user.assert_not_awaited()

@@ -3,16 +3,18 @@
 import logging
 import os
 from http import HTTPStatus
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, Response
 
 from app.adapters import UsersAdapter
-from app.authorization import require_roles
+from app.authorization import TokenData, get_current_token, require_roles
 from app.models import Activation, Role, User, UserInfo
 from app.services import (
+    CannotDeleteSelfError,
     IllegalValueError,
     PasswordTooShortError,
     UserNotFoundError,
@@ -128,13 +130,17 @@ async def create_activation(user_id: UUID) -> Activation:
     "/users/{user_id}",
     dependencies=[require_roles(Role.ADMIN)],
 )
-async def delete(user_id: UUID) -> Response:
-    """Delete route function."""
+async def delete(
+    user_id: UUID, token: Annotated[TokenData, Depends(get_current_token)]
+) -> Response:
+    """Delete a user. A user cannot delete the user they are logged in as."""
     # Process request:
     logger.debug("Got delete request for user %s", user_id)
 
     try:
-        await UsersService.delete_user(user_id)
+        await UsersService.delete_user(user_id, token.sub)
     except UserNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND) from e
+    except CannotDeleteSelfError as e:
+        raise HTTPException(status_code=HTTPStatus.CONFLICT, detail=str(e)) from e
     return Response(status_code=HTTPStatus.NO_CONTENT)
