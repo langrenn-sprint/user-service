@@ -15,8 +15,6 @@ from pytest_mock import MockFixture
 
 from app.services.passwords import PASSWORD_HASH_MONGO_REGEX
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = int(os.getenv("DB_PORT", "27017"))
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -38,10 +36,10 @@ def token() -> str:
 
 
 @pytest.fixture(scope="module")
-async def clear_db() -> AsyncGenerator:
+async def clear_db(db_address: dict[str, Any]) -> AsyncGenerator:
     """Delete all events before we start."""
     mongo = motor.motor_asyncio.AsyncIOMotorClient(
-        host=DB_HOST, port=DB_PORT, username=DB_USER, password=DB_PASSWORD
+        **db_address, username=DB_USER, password=DB_PASSWORD
     )
     try:
         await mongo.drop_database(f"{DB_NAME}")
@@ -82,7 +80,9 @@ async def test_create_user(http_service: Any, token: MockFixture) -> None:
 
 @pytest.mark.contract
 @pytest.mark.asyncio
-async def test_login_created_user_password_is_hashed(http_service: Any) -> None:
+async def test_login_created_user_password_is_hashed(
+    http_service: Any, db_address: dict[str, Any]
+) -> None:
     """Should log in the new user, and store a hash, not the password."""
     async with AsyncClient() as client:
         response = await client.post(
@@ -92,7 +92,7 @@ async def test_login_created_user_password_is_hashed(http_service: Any) -> None:
     assert response.status_code == HTTPStatus.OK, response.text
 
     mongo = motor.motor_asyncio.AsyncIOMotorClient(
-        host=DB_HOST, port=DB_PORT, username=DB_USER, password=DB_PASSWORD
+        **db_address, username=DB_USER, password=DB_PASSWORD
     )
     try:
         user = await mongo[f"{DB_NAME}"].users_collection.find_one(
@@ -216,12 +216,14 @@ async def test_delete_user(http_service: Any, token: MockFixture) -> None:
 
 @pytest.mark.contract
 @pytest.mark.asyncio
-async def test_plaintext_password_query_in_mongodb(http_service: Any) -> None:
+async def test_plaintext_password_query_in_mongodb(
+    http_service: Any, db_address: dict[str, Any]
+) -> None:
     """Should select plain-text passwords, also those resembling a hash, in MongoDB."""
     _ = http_service  # starts the services, including MongoDB
     password_hash = PasswordHasher().hash("secret")
     mongo = motor.motor_asyncio.AsyncIOMotorClient(
-        host=DB_HOST, port=DB_PORT, username=DB_USER, password=DB_PASSWORD
+        **db_address, username=DB_USER, password=DB_PASSWORD
     )
     collection = mongo[f"{DB_NAME}"].password_regex_test
     try:
