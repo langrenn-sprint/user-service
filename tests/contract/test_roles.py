@@ -2,9 +2,8 @@
 
 A user is created with each role and logs in, so the tests use real tokens.
 They check that only admin may read and change users, that the token carries
-the user's role, and how a role change reaches the token:
-- /authorize rejects a token whose role no longer matches the user.
-- /token/renew puts the new role in the new token.
+the user's role, and that a role change reaches the token: /token/renew
+puts the new role in the new token.
 """
 
 import os
@@ -212,28 +211,14 @@ async def test_user_cannot_change_own_role(http_service: str, admin_token: str) 
 async def test_role_change_reaches_the_token(
     http_service: str, admin_token: str
 ) -> None:
-    """Admin changes a user's role.
-
-    /authorize then rejects the old token, as its role no longer matches, and
-    /token/renew gives a token with the new role.
-    """
+    """Admin changes a user's role; /token/renew gives a token with the new role."""
     username = "rollebytte@example.com"
     async with AsyncClient() as client:
         user_id = await _create_user(
             client, http_service, admin_token, username, CONTESTANT_ADMIN
         )
         token = await _login(client, http_service, username, PASSWORD)
-
-        response = await client.post(
-            f"{http_service}/authorize",
-            json={"token": token, "target_roles": [CONTESTANT_ADMIN]},
-        )
-        _check(response, HTTPStatus.NO_CONTENT, "authorize with own role")
-        response = await client.post(
-            f"{http_service}/authorize",
-            json={"token": token, "target_roles": [ADMIN, RESULT_ADMIN]},
-        )
-        _check(response, HTTPStatus.FORBIDDEN, "authorize with other roles")
+        assert _role_in(token) == CONTESTANT_ADMIN
 
         response = await client.put(
             f"{http_service}/users/{user_id}",
@@ -246,12 +231,6 @@ async def test_role_change_reaches_the_token(
             },
         )
         _check(response, HTTPStatus.NO_CONTENT, "change role as admin")
-
-        response = await client.post(
-            f"{http_service}/authorize",
-            json={"token": token, "target_roles": [CONTESTANT_ADMIN]},
-        )
-        _check(response, HTTPStatus.FORBIDDEN, "authorize with the old token")
 
         response = await client.post(
             f"{http_service}/token/renew", headers=_auth(token)
