@@ -8,6 +8,7 @@ from app.models import LoginRequest
 from app.services import (
     LoginService,
     UnknownUserError,
+    UserNotActivatedError,
     WrongPasswordError,
 )
 
@@ -26,6 +27,11 @@ async def post(login_request: LoginRequest) -> dict:
     except (UnknownUserError, WrongPasswordError) as e:
         raise HTTPException(
             status_code=401, detail="Incorrect username or password"
+        ) from e
+    except UserNotActivatedError as e:
+        raise HTTPException(
+            status_code=403,
+            detail="User is not activated. Use the activation link.",
         ) from e
 
     return {"token": jwt_token}

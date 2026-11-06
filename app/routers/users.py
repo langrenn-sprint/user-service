@@ -6,16 +6,19 @@ from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse, Response
 
 from app.adapters import UsersAdapter
 from app.authorization import require_roles
-from app.models import Role, User
+from app.models import Activation, Role, User, UserInfo
 from app.services import (
     IllegalValueError,
+    PasswordTooShortError,
+    UserNotFoundError,
     UsersService,
+    user_info,
 )
-from app.services.users_service import UserNotFoundError
 
 HOST_SERVER = os.getenv("HOST_SERVER", "localhost")
 HOST_PORT = os.getenv("HOST_PORT", "8000")
@@ -27,22 +30,44 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/users", dependencies=[require_roles(Role.ADMIN)])
-async def get_users() -> list[User]:
+async def get_users() -> list[UserInfo]:
     """Get route function."""
-    return await UsersAdapter.get_all_users()
+    return [user_info(document) for document in await UsersAdapter.get_all_users()]
 
 
-@router.post("/users", dependencies=[require_roles(Role.ADMIN)])
+@router.post(
+    "/users",
+    dependencies=[require_roles(Role.ADMIN)],
+    status_code=HTTPStatus.CREATED,
+    responses={
+        HTTPStatus.CREATED: {
+            "model": Activation,
+            "description": (
+                "Created. Without password in the request, the body has the "
+                "activation code; this is the only time it can be read."
+            ),
+        }
+    },
+)
 async def post(user: User) -> Response:
-    """Post route function."""
+    """Create a user, with a password or with an activation code."""
     try:
-        user_id = await UsersService.create_user(user)
+        user_id, activation = await UsersService.create_user(user)
     except IllegalValueError as e:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e)) from e
+    except PasswordTooShortError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=str(e)
+        ) from e
     if user_id:
         logger.debug("inserted document with id %s", user_id)
         headers = {"Location": f"/users/{user_id}"}
-
+        if activation:
+            return JSONResponse(
+                status_code=HTTPStatus.CREATED,
+                headers=headers,
+                content=jsonable_encoder(activation),
+            )
         return Response(status_code=HTTPStatus.CREATED, headers=headers)
     raise HTTPException(status_code=HTTPStatus.BAD_REQUEST) from None
 
@@ -51,14 +76,14 @@ async def post(user: User) -> Response:
     "/users/{user_id}",
     dependencies=[require_roles(Role.ADMIN)],
 )
-async def get_user_by_id(user_id: UUID) -> User:
+async def get_user_by_id(user_id: UUID) -> UserInfo:
     """Get route function."""
     logger.debug("Got get request for user %s", user_id)
-    user = await UsersAdapter.get_user_by_id(user_id)
-    if not user:
+    document = await UsersAdapter.get_user_document(user_id)
+    if not document:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND) from None
 
-    return user
+    return user_info(document)
 
 
 @router.put(
@@ -72,9 +97,31 @@ async def put(user_id: UUID, user: User) -> Response:
         await UsersService.update_user(user_id, user)
     except IllegalValueError as e:
         raise HTTPException(status_code=HTTPStatus.UNPROCESSABLE_ENTITY) from e
+    except PasswordTooShortError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=str(e)
+        ) from e
     except UserNotFoundError as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND) from e
     return Response(status_code=HTTPStatus.NO_CONTENT)
+
+
+@router.post(
+    "/users/{user_id}/activation",
+    dependencies=[require_roles(Role.ADMIN)],
+    status_code=HTTPStatus.CREATED,
+)
+async def create_activation(user_id: UUID) -> Activation:
+    """Give the user a new activation code, e.g. to reset the password.
+
+    Earlier codes stop working. A password the user has keeps working until
+    the user sets a new one with the code. This is the only time the code can
+    be read.
+    """
+    try:
+        return await UsersService.create_activation(user_id)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND) from e
 
 
 @router.delete(

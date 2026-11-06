@@ -45,6 +45,12 @@ def token_nonprivileged_user() -> str:
     return jwt.encode(payload, secret, algorithm)
 
 
+def user_document(user: User, **fields: object) -> dict:
+    """Return the user as stored in the database."""
+    password = user.password.get_secret_value() if user.password else None
+    return {**user.model_dump(), "password": password, **fields}
+
+
 @pytest.fixture
 async def mock_user() -> User:
     """Create a mock user object."""
@@ -84,7 +90,7 @@ async def test_create_user(
     request_body = {
         "id": mock_user.id.hex,
         "username": "user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
     headers = {
@@ -109,7 +115,7 @@ async def test_create_user_stores_password_hash(
     request_body = {
         "id": USER_ID.hex,
         "username": "user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
     headers = {"Authorization": f"Bearer {token}"}
@@ -119,7 +125,7 @@ async def test_create_user_stores_password_hash(
 
     stored = create_user.await_args_list[0].args[0].password.get_secret_value()
     assert is_password_hash(stored)
-    assert await verify_password(stored, "secret")
+    assert await verify_password(stored, "secret-1234")
 
 
 @pytest.mark.integration
@@ -138,7 +144,7 @@ async def test_update_user_stores_password_hash(
     request_body = {
         "id": str(USER_ID),
         "username": "updated.user@example.com",
-        "password": "newsecret",
+        "password": "newsecret-1234",
         "role": "admin",
     }
     headers = {"Authorization": f"Bearer {token}"}
@@ -148,7 +154,7 @@ async def test_update_user_stores_password_hash(
 
     stored = update_user.await_args_list[0].args[1].password.get_secret_value()
     assert is_password_hash(stored)
-    assert await verify_password(stored, "newsecret")
+    assert await verify_password(stored, "newsecret-1234")
 
 
 @pytest.mark.integration
@@ -158,10 +164,10 @@ async def test_get_user_by_id(
     token: MockFixture,
     mock_user: User,
 ) -> None:
-    """Should return OK, and a body containing one user."""
+    """Should return OK, and a body containing one user, without password."""
     mocker.patch(
-        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
-        return_value=mock_user,
+        "app.adapters.users_adapter.UsersAdapter.get_user_document",
+        return_value=user_document(mock_user),
     )
     mocker.patch(
         "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
@@ -179,6 +185,8 @@ async def test_get_user_by_id(
     assert type(user) is dict
     assert user["id"] == str(mock_user.id)
     assert user["username"] == mock_user.username
+    assert user["activated"] is True
+    assert "password" not in user
 
 
 @pytest.mark.integration
@@ -207,7 +215,7 @@ async def test_update_user_by_id(
     request_body = {
         "id": str(mock_user.id),
         "username": "updated.user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
 
@@ -222,7 +230,7 @@ async def test_list_users(
     """Should return OK and a valid json body."""
     mocker.patch(
         "app.adapters.users_adapter.UsersAdapter.get_all_users",
-        return_value=[mock_user],
+        return_value=[user_document(mock_user)],
     )
     mocker.patch(
         "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
@@ -286,7 +294,7 @@ async def test_create_user_invalid_input(
 
     request_body_lacks_role = {
         "username": "user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
     }
     headers = {
         "Content-Type": "application/json",
@@ -314,7 +322,7 @@ async def test_create_user_with_id(
     request_body_with_id = {
         "id": str(USER_ID),
         "username": "user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
     headers = {
@@ -343,7 +351,7 @@ async def test_create_user_with_username_admin(
 
     request_body = {
         "username": "admin",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
     headers = {
@@ -372,7 +380,7 @@ async def test_create_user_returns_none(
     request_body_lacks_role = {
         "username": "user@example.com",
         "role": "admin",
-        "password": "secret",
+        "password": "secret-1234",
     }
     headers = {
         "Content-Type": "application/json",
@@ -409,7 +417,7 @@ async def test_update_user_invalid_input(
     request_body_lacks_role = {
         "id": str(USER_ID),
         "username": "updated.user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
     }
 
     resp = client.put(
@@ -444,7 +452,7 @@ async def test_update_user_set_username_to_admin(
     request_body = {
         "id": str(USER_ID),
         "username": "admin",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
 
@@ -478,7 +486,7 @@ async def test_update_user_change_id(
     request_body = {
         "id": str(uuid4()),
         "username": "some.user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
 
@@ -496,7 +504,7 @@ async def test_get_user_not_found(
     """Should return 404 Not found."""
     user_id = str(uuid4())
     mocker.patch(
-        "app.adapters.users_adapter.UsersAdapter.get_user_by_id",
+        "app.adapters.users_adapter.UsersAdapter.get_user_document",
         return_value=None,
     )
     mocker.patch(
@@ -538,7 +546,7 @@ async def test_update_user_not_found(
     request_body = {
         "id": str(USER_ID),
         "username": "updated.user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
 
@@ -594,7 +602,7 @@ async def test_create_user_unauthorized(
 
     request_body = {
         "username": "user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
     headers = {
@@ -660,7 +668,7 @@ async def test_update_user_by_id_unauthorized(
     request_body = {
         "id": str(USER_ID),
         "username": "updated.user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
 
@@ -757,7 +765,7 @@ async def test_users_forbidden_for_other_roles_than_admin(
     request_body = {
         "id": str(USER_ID),
         "username": "user@example.com",
-        "password": "secret",
+        "password": "secret-1234",
         "role": "admin",
     }
 
@@ -788,7 +796,11 @@ async def test_create_user_with_each_role(
         "app.adapters.users_adapter.UsersAdapter.get_user_by_username",
         return_value=None,
     )
-    request_body = {"username": "user@example.com", "password": "secret", "role": role}
+    request_body = {
+        "username": "user@example.com",
+        "password": "secret-1234",
+        "role": role,
+    }
 
     resp = client.post(
         "/users", headers={"Authorization": f"Bearer {token}"}, json=request_body
@@ -803,7 +815,11 @@ async def test_create_user_with_removed_role(
 ) -> None:
     """Should return 422 Unprocessable Entity for roles that no longer exist."""
     create_user = mocker.patch("app.adapters.users_adapter.UsersAdapter.create_user")
-    request_body = {"username": "user@example.com", "password": "secret", "role": role}
+    request_body = {
+        "username": "user@example.com",
+        "password": "secret-1234",
+        "role": role,
+    }
 
     resp = client.post(
         "/users", headers={"Authorization": f"Bearer {token}"}, json=request_body

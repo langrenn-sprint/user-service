@@ -10,6 +10,9 @@ from argon2.exceptions import InvalidHashError, VerificationError
 
 _hasher = PasswordHasher()
 
+# The shortest password a user may set. Existing passwords are not affected:
+MIN_PASSWORD_LENGTH = 10
+
 # A complete argon2 encoding, like "$argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>".
 # A prefix check is not enough: a plain-text password may start with "$argon2".
 _HASH_PATTERN = (
